@@ -1,6 +1,6 @@
 # dsh-conversation-enhancer
 
-An enhancer for the conversation view of DeepSeek Harness (web and DSH NEXT): it re-lays out what a turn shows — work details, tool calls, the plan card — and evens out how the whole column reads, from typography to command colours. Earlier names: dsh-claude-transcript → dsh-better-display (2026-11-11) → dsh-conversation-enhancer (2026-11-16, the name it is published under). The 回到底部 button lives in dsh-claude-composer (it sits on the input box); surface colours and glass are in dsh-claude-theme.
+An enhancer for the conversation view of DeepSeek Harness (web and DSH NEXT): it re-lays out what a turn shows — work details, tool calls, the plan card — and evens out how the whole column reads, from typography to command colours. Earlier names: dsh-claude-transcript → dsh-better-display (2026-11-11) → dsh-conversation-enhancer (2026-11-16, the name it is published under). The 回到底部 button lives in dsh-composer-display (it sits on the input box); surface colours and glass are in dsh-whale-theme.
 
 | Part | File | What it does |
 | --- | --- | --- |
