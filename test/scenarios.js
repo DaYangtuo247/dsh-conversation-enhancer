@@ -8,7 +8,7 @@
   window.RESULTS = RESULTS
 
   const CMD = 'ls -la src/components && grep -rn "useState" src --include=*.tsx | head -20'
-  const OUT = Array.from({ length: 24 }, (_, i) => `drwxr-xr-x  12 wuqiling  staff   384 Nov 14 10:${String(i).padStart(2, '0')} file_${i}.tsx`).join('\n') + '\n[exit code: 0]'
+  const OUT = Array.from({ length: 24 }, (_, i) => `drwxr-xr-x  12 dev       staff   384 Nov 14 10:${String(i).padStart(2, '0')} file_${i}.tsx`).join('\n') + '\n[exit code: 0]'
   const READOUT = Array.from({ length: 30 }, (_, i) => `${i + 1}\timport React from 'react' // line ${i + 1}`).join('\n')
 
   // Build a believable session: `n` finished history turns. Returns {nodes, entries}.
