@@ -1,0 +1,25 @@
+/*!
+ * Styles for transcript-view (parts/01-transcript-view.ts): dsh's own thinking disclosure
+ * restyled as a quiet 「思考 ›」 line with a muted body on a thin rule, and the 标准 view's
+ * hiding of reasoning rows (driven by html[data-dcd-view], which the part sets).
+ */
+$chev-tv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4.5 2.5 8 6l-3.5 3.5' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+/* thinking blocks read like the tool-group lines (「运行了 1 条命令 ›」): a quiet 「思考 ›」 header and a muted body
+   on a thin rule, instead of dsh's ^ chevron and full-size primary text */
+/* dsh pins the thinking header (sticky, opaque page colour): on a translucent background that reads as a white band */
+[data-variant="think"] [data-disclosure-header]{position:static!important;background:transparent!important;box-shadow:none!important}
+[data-variant="think"] [data-disclosure-row]{display:inline-flex!important;align-items:center;gap:8px!important;width:auto!important;min-height:0!important;
+  margin:4px 0 2px;padding:2px 0!important;background:transparent!important;font-size:var(--dsh-content-font-size,14px)!important;line-height:calc(22px + var(--dsh-content-font-delta,0px))!important;color:var(--dsw-alias-label-tertiary)!important;cursor:pointer}
+[data-variant="think"] [data-disclosure-row]:hover{color:var(--dsw-alias-label-secondary)!important}
+[data-variant="think"] [data-disclosure-row] > [class*="_leading"]{display:none!important}
+[data-variant="think"] [data-disclosure-row] [class*="_title"]{color:inherit!important;font-size:var(--dsh-content-font-size,14px)!important;font-weight:400!important}
+[data-variant="think"] [data-disclosure-row]::after{content:"";flex:none;width:12px;height:12px;background:currentColor;transition:transform .15s ease;
+  -webkit-mask:$chev-tv center/12px no-repeat;mask:$chev-tv center/12px no-repeat}
+[data-variant="think"] [data-disclosure-row][aria-expanded="true"]::after{transform:rotate(90deg)}
+[data-variant="think"] [class*="_thinkBody"]{margin:2px 0 8px 1px!important;padding:2px 0 2px 14px!important;border-left:2px solid var(--dsw-alias-border-l2,rgba(127,127,127,.22))}
+[data-variant="think"] [class*="_thinkBody"] :is([class*="_markdown"],p,li){font-size:calc(var(--dsh-content-font-size,14px) - .5px)!important;line-height:1.7!important;color:var(--dsw-alias-label-secondary)!important}
+[data-variant="think"] [class*="_thinkBody"] p{margin:0 0 .5em!important}
+/* Normal: hide the reasoning rows (the bottom running status still shows the agent is working) */
+html[data-dcd-view=normal] [data-conversation-scroll] [data-chat-flow-kind=assistant-step][data-chat-group-part=reasoning]{display:none!important}
+/* a process group left with nothing but hidden reasoning keeps no margin either */
+html[data-dcd-view=normal] [data-conversation-scroll] [data-step-process]:not(:has([data-chat-flow-kind]:not([data-chat-group-part=reasoning]))){display:none!important}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Conversation Enhancer",
+    "description": "Enhances and re-lays out the conversation: replaces dsh's own Settings › General › work details (Normal hides thinking, Thinking expands it, Verbose also opens every command's input and output; dsh's own folding is turned off), folds tool calls into groups (failed tags, image thumbnails), draws the plan card inside the transcript, and sets one reading size and one sans across replies, bubbles, code and command rows, with syntax colours for shell commands."
+  }
+}

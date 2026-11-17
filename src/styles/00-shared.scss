@@ -1,0 +1,28 @@
+@use 'shared' as *;
+
+/*!
+ * Styles for display-shared (parts/00-shared.ts): the base block every quiet summary line
+ * shares (「命令 ×3 ›」, 「思考 4 秒 ›」, the plan card's 「已完成全部 N 项任务 ›」), the bundle's
+ * motion keyframes, and the two motion switches (html[data-dcd-anim="off"], reduced-motion).
+ * $summary-heads is also used by styles/08-conversation-flow.scss, so both head shapes stay one button.
+ */
+/* the quiet summary lines: one base block instead of five near-copies. padding-inline sits on
+   negative margin-inline, so the hover wash has room to breathe around the text without shifting
+   anything it sits behind (the line's visual edges stay where they were). */
+#{$summary-heads}{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;max-width:100%;
+  padding:2px 6px;margin-inline:-6px;border-radius:6px;cursor:pointer;
+  font-size:var(--dsh-content-font-size,14px);line-height:calc(22px + var(--dsh-content-font-delta,0px));
+  color:var(--dsw-alias-label-tertiary);user-select:none;-webkit-user-select:none;
+  transition:color .12s ease,background-color .12s ease}
+#{$summary-heads}:hover{color:var(--dsw-alias-label-secondary);background:color-mix(in srgb,var(--dsw-alias-label-primary) 5%,transparent)}
+/* the press: a deeper wash for the moment the finger is down, so a click is felt before the fold moves */
+#{$summary-heads}:active{background:color-mix(in srgb,var(--dsw-alias-label-primary) 9%,transparent)}
+#{$summary-heads}:focus-visible{@include focus-ring(2px)}
+/* the bundle's motion keyframes: enters rise 4px, exits sink 2px, checks pop, turns just fade
+   (opacity only — anything taller fights the scroll anchoring that keeps the reading position) */
+@keyframes dcd-in{from{opacity:0;transform:translateY(4px)}}
+@keyframes dcd-out{to{opacity:0;transform:translateY(2px)}}
+@keyframes dcd-pop{from{opacity:0;transform:scale(.55)}}
+@keyframes dcd-turn-in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){#{$summary-heads}{transition:none}}
+html[data-dcd-anim="off"] #{$summary-heads}{transition:none}

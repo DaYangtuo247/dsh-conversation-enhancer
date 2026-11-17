@@ -1,0 +1,36 @@
+/*!
+ * Styles for user-markdown (parts/10-user-markdown.ts): the user's own bubble drawn with dsh's
+ * MarkdownText at the bubble's own size and colour. A single paragraph stays inline so an
+ * @session chip mid-sentence still flows; lists / code / tables lay out as blocks.
+ */
+$md-user: '.dcd-type-user-md [class*="_markdown"]';
+.dcd-type-user-md{display:inline}
+#{$md-user}{font-size:inherit!important;line-height:1.65!important;color:inherit!important;white-space:pre-wrap;max-width:100%;min-width:0;overflow-wrap:anywhere}
+#{$md-user}>:first-child{margin-top:0!important}
+#{$md-user}>:last-child{margin-bottom:0!important}
+#{$md-user} p{margin:0 0 .6em!important;white-space:pre-wrap}
+#{$md-user} p:last-child{margin-bottom:0!important}
+/* one paragraph flows inline so an @session chip mid-sentence stays on the line */
+#{$md-user}:has(>p:only-child){display:inline}
+#{$md-user}:has(>p:only-child)>p{display:inline;margin:0!important}
+#{$md-user} :is(h1,h2,h3,h4){font-weight:600!important;line-height:1.4!important;margin:.85em 0 .4em!important;color:inherit!important;letter-spacing:-.005em}
+#{$md-user} h1{font-size:1.25em!important}#{$md-user} h2{font-size:1.15em!important}#{$md-user} h3{font-size:1.06em!important}#{$md-user} h4{font-size:1em!important}
+#{$md-user} :is(ul,ol){margin:.3em 0 .6em!important;padding-left:1.4em!important}
+#{$md-user} li{margin:.15em 0!important}
+#{$md-user} li::marker{color:var(--dsw-alias-label-tertiary)}
+#{$md-user} li>:is(ul,ol){margin:.1em 0!important}
+#{$md-user} strong{font-weight:600}
+#{$md-user} :not(pre)>code{font-size:.88em!important;padding:.1em .35em!important;border-radius:5px!important;border:0!important;
+  background:var(--dcd-type-code-bg,rgba(31,30,29,.055))!important;color:var(--dcd-type-code-fg,#8a3b22)!important}
+#{$md-user} pre{margin:.45em 0!important;white-space:pre!important;max-width:100%;overflow:auto}
+#{$md-user} pre,#{$md-user} pre code{font-size:calc(var(--dsh-code-font-size,11px) + 1.5px)!important;line-height:1.6!important}
+#{$md-user} blockquote{border-left:2px solid var(--dsw-alias-border-l2)!important;padding-left:.9em!important;margin:.45em 0!important;color:var(--dcd-type-text-2,inherit)!important}
+#{$md-user} [class*="_tableScroll"]{margin:.45em 0!important;max-width:100%;overflow:auto}
+#{$md-user} table{font-size:.95em!important;border-collapse:collapse;margin:0!important}
+#{$md-user} :is(th,td){padding:5px 16px 5px 0!important}
+#{$md-user} th{font-weight:600!important;border-bottom:1px solid var(--dsw-alias-border-l1)!important}
+#{$md-user} td{border-bottom:1px solid var(--dsw-alias-border-l2)!important}
+#{$md-user} tr:last-child>td{border-bottom:0!important}
+#{$md-user} hr{border:0!important;border-top:1px solid var(--dsw-alias-border-l1)!important;margin:.85em 0!important}
+#{$md-user} a{text-underline-offset:2px;text-decoration-thickness:1px}
+#{$md-user} img{max-width:100%;height:auto;border-radius:8px}

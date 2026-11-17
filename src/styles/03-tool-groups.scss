@@ -1,0 +1,235 @@
+@use 'shared' as *;
+
+/* @js styleToolGroups */
+/*!
+ * Styles for tool-groups (parts/03-tool-groups.ts): the group summary line's own pieces, the
+ * bordered card a run opens into (one row per call, dividers, › chevron), the terminal / file /
+ * output bands inside an opened row, the per-row picture tile and its lightbox, and the
+ * conversation-flow card rules (08 draws the rows, these dress them). The selectors the part queries
+ * the DOM with are passed in at runtime as placeholders, so CSS and queries can never drift.
+ */
+/* 查看 icon: open-in-panel arrow */
+$expand-tg: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2016%2016'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'1.5'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M9.5%202.75h3.75V6.5M13.25%202.75%208%208M6.5%203.25H4.25a1.5%201.5%200%200%200-1.5%201.5v7a1.5%201.5%200%200%200%201.5%201.5h7a1.5%201.5%200%200%200%201.5-1.5V9.5'%2F%3E%3C%2Fsvg%3E");
+$row: '__DCG_ROW__';
+$open: '__DCG_OPEN__';
+$call: '__DCG_CALL__';
+$node: '__DCG_NODE__';
+$chev-mask: __DCG_CHEV_MASK__;
+/* the one-line summary, e.g. 命令 ×3 › (base look + hover wash: display-shared) */
+.dcd-group-head{margin-block:4px 6px}
+.dcd-group-label{min-width:0;@include ellipsis}
+.dcd-group-time{flex:none;font-variant-numeric:tabular-nums}
+.dcd-group-time:empty,.dcd-group-err:empty{display:none}
+.dcd-group-err{flex:none;color:var(--dsw-alias-label-danger,#e5484d)}
+.dcd-group-chev{@include icon-box;transition:transform .15s ease}
+.dcd-group-chev svg{display:block}
+.dcd-group-head[aria-expanded="true"] .dcd-group-chev{transform:rotate(90deg)}
+.dcd-group-live{flex:none;display:none;width:12px;height:12px;position:relative}
+.dcd-group-head[data-live] .dcd-group-live{display:inline-block}
+.dcd-group-head[data-live]{color:var(--dsw-alias-label-secondary)}
+/* the running call previews below the counts line while the fold stays closed
+   (8px + display-shared's 6px padding = the 14px indent the line always had) */
+.dcd-group-now{margin-block:2px 4px;margin-left:8px;color:var(--dsw-alias-label-secondary);animation:dcd-in .16s cubic-bezier(.2,.8,.2,1)}
+.dcd-group-now:hover{color:var(--dsw-alias-label-primary)}
+.dcd-group-now .dcd-group-live{display:inline-block}
+.dcd-group-live i{position:absolute;width:4px;height:4px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-business-primary,#4d6bfe);animation:dcd-group-pulse 1.2s ease-in-out infinite}
+.dcd-group-live i:nth-child(1){left:0;top:0}.dcd-group-live i:nth-child(2){right:0;top:0;animation-delay:.3s}
+.dcd-group-live i:nth-child(3){right:0;bottom:0;animation-delay:.6s}.dcd-group-live i:nth-child(4){left:0;bottom:0;animation-delay:.9s}
+@keyframes dcd-group-pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.dcd-group-live i{animation:none;opacity:.8}}
+/* images the calls looked at (read_image): small thumbnails at the right end of the line, as in the quiet style;
+   a click opens dsh's own viewer */
+.dcd-group-thumbs{flex:none;display:none;align-items:center;gap:4px;margin-left:auto;padding-left:12px}
+.dcd-group-thumbs:not(:empty){display:inline-flex}
+.dcd-group-thumb{all:unset;box-sizing:border-box;display:block;width:44px;height:30px;border-radius:6px;overflow:hidden;cursor:zoom-in;
+  border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);box-shadow:0 1px 2px rgba(0,0,0,.06);
+  transition:transform .12s ease,box-shadow .12s ease}
+.dcd-group-thumb:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.dcd-group-thumb:focus-visible{@include focus-ring(1px)}
+.dcd-group-thumb img{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .18s ease}
+.dcd-group-thumb[data-ok] img{opacity:1}
+.dcd-group-more{flex:none;font-size:12px;color:var(--dsw-alias-label-tertiary);padding-left:2px}
+/* +12px pays back the head's negative margin-inline, so a full-width head still spans the column */
+.dcd-group-head:has(.dcd-group-thumbs:not(:empty)){width:calc(100% + 12px)}
+.dcd-group-head:has(.dcd-group-thumbs:not(:empty)) .dcd-group-label{flex:0 1 auto}
+/* dsh's image viewer has no backdrop: dim and blur the page behind it, as the quiet style does */
+[role="dialog"][class*="_backdrop"]:has(> [class*="_stage"] img){background:rgba(20,20,19,.62)!important;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:dcd-group-fade .15s ease-out}
+[role="dialog"][class*="_backdrop"] > [class*="_stage"] img{border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+@keyframes dcd-group-fade{from{opacity:0}to{opacity:1}}
+/* that dim is decoration too, so it follows the same two switches as everything else
+   (animation is only ever set on the :has() variant above, so the shorter selector is enough) */
+@media (prefers-reduced-motion:reduce){[role="dialog"][class*="_backdrop"]{animation:none}}
+html[data-dcd-anim="off"] [role="dialog"][class*="_backdrop"]{animation:none}
+/* a read_image row opened only so its image loads: keep its body out of sight until the user opens it */
+[data-dcd-group-imgauto] [class*="_bodyWrap"]{display:none!important}
+[data-dcd-group-imgauto] #{$row}[aria-expanded="true"]::after{transform:none!important}
+
+/* a finished turn's 「已完成，用时 X 秒」 line: the quiet style has none (it stays while the turn runs) */
+[data-dcd-group-done]{display:none!important}
+/* plan updates: shown by the plan card instead */
+[data-dcd-group-plan]{display:none!important}
+/* folded */
+[data-dcd-group-member][data-dcd-group-hide]:not([data-dcd-group-head]){display:none!important}
+[data-dcd-group-head][data-dcd-group-hide] #{$node}{display:none!important}
+
+/* opening: the card's rows settle in — a short cascade inside a conversation-flow card, where the rows
+   are direct children (in the native mode they are interleaved with the rest of the flow, so all
+   rise together). Closing: rows fade before display:none lands — sync() holds them one beat under
+   data-dcd-group-closing, and reopening cancels the fade by dropping the attribute again.
+   backwards, not both: the staggered rows need their first keyframe held across the delay, but
+   filling forwards would keep a finished Animation pinned to every row for the life of the page. */
+#{$open}{animation:dcd-in .16s cubic-bezier(.2,.8,.2,1) backwards}
+.dcd-flow-card > :nth-child(2){animation-delay:.02s}
+.dcd-flow-card > :nth-child(3){animation-delay:.045s}
+.dcd-flow-card > :nth-child(4){animation-delay:.07s}
+[data-dcd-group-closing]{animation:dcd-out .13s ease-in forwards!important}
+@media (prefers-reduced-motion:reduce){#{$open},.dcd-group-now,[data-dcd-group-closing]{animation:none}.dcd-group-thumb img{transition:none;opacity:1}}
+html[data-dcd-anim="off"] :is(#{$open},.dcd-group-now,[data-dcd-group-closing]){animation:none}
+html[data-dcd-anim="off"] .dcd-group-thumb img{transition:none;opacity:1}
+
+/* open: one bordered card, a row per call, dividers between rows */
+#{$open}:not([data-dcd-group-first],.dcd-flow-card > :first-child){margin-top:0!important}
+#{$open} #{$call}{border:1px solid var(--dsw-alias-border-l2);border-top-width:0;border-radius:0!important;overflow:hidden}
+#{$open}:is([data-dcd-group-first],.dcd-flow-card > :first-child) #{$call}{border-top-width:1px;border-top-left-radius:12px!important;border-top-right-radius:12px!important}
+#{$open}:is([data-dcd-group-last],.dcd-flow-card > :last-child) #{$call}{border-bottom-left-radius:12px!important;border-bottom-right-radius:12px!important}
+#{$open} #{$row}{box-sizing:border-box;min-height:44px!important;padding:10px 24px!important;gap:8px!important;
+  border-radius:0!important;font-size:var(--dsh-content-font-size,14px)!important;line-height:calc(22px + var(--dsh-content-font-delta,0px))!important;color:var(--dsw-alias-label-secondary)!important;background:transparent}
+#{$open} #{$row}:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 4%,transparent)!important}
+#{$open} #{$row} [class*="_leading"]{display:none!important}
+#{$open} #{$row} [class*="_text_"]{font-size:var(--dsh-content-font-size,14px)!important;line-height:calc(22px + var(--dsh-content-font-delta,0px))!important}
+#{$open} #{$row}::after{content:"";flex:none;width:12px;height:12px;margin-left:auto;background:var(--dsw-alias-label-tertiary);
+  -webkit-mask:$chev-mask center/12px no-repeat;mask:$chev-mask center/12px no-repeat;transition:transform .15s ease}
+#{$open} #{$row}[aria-expanded="true"]::after{transform:rotate(90deg)}
+/* commands: the description alone, like the quiet style — but only once there IS a description. While the
+   call is still preparing, dsh has no arguments yet, so the row has no summary to fall back on and
+   hiding the title as well left the card ending in a bare 「>_」 prompt. The command shows until the
+   description lands, then swaps to it. */
+#{$open} :is([data-variant="bash"],[data-sample="bash"],[data-tool="bash"],[data-tool="pwsh"]):has([class*="_summary"]:not(:empty)) :is([class$="_title"],[class*="_title "],[class$="_sep"],[class*="_sep "]){display:none!important}
+#{$open} :is([data-variant="bash"],[data-sample="bash"],[data-tool="bash"],[data-tool="pwsh"]) [class*="_summary"]{color:var(--dsw-alias-label-secondary)!important}
+/* the +N / −N of an edit row: dsh colours them only while the row is hovered (or open), so a
+   closed card reads as one flat grey line. Green and red always — the counts are the one thing
+   that says how big the edit was, and a colour that appears only under the cursor is a colour
+   nobody sees. (dsh's own rule resets them to inherit under a file-link hover; !important wins.) */
+#{$open} [class*="_diffAdded"]{color:var(--dsw-alias-state-success-primary,#1a7f37)!important}
+#{$open} [class*="_diffRemoved"]{color:var(--dsw-alias-state-error-primary,#cf222e)!important}
+/* the opened input / output view: a full-width grey band under the row, split off by a hairline
+   (no second rounded box inside the card), text aligned with the row text */
+#{$open} [class*="_bodyWrap"]{box-sizing:border-box;padding:0!important;gap:0!important;position:relative}
+/* the band is a darker well than the card so command and output stand apart; a theme sets --dcd-band */
+/* dsh-claude-theme still overrides --dtg-band: read it first, so glass and band stay one colour */
+body{--dcd-band:var(--dtg-band,rgba(15,23,42,.045))}
+body[data-ds-dark-theme]{--dcd-band:var(--dtg-band,rgba(0,0,0,.28))}
+#{$open} [class*="_bodyWrap"] > :not([class*="_inspectButton"]){margin:0!important;max-width:100%;box-sizing:border-box;
+  border:0!important;border-top:1px solid var(--dsw-alias-border-l1)!important;border-radius:0!important;box-shadow:none!important;
+  background:var(--dcd-band)!important}
+/* dsh's 查看 button: one floating chip in the band's bottom-right corner for every kind of detail
+   (command output, file preview…). Frosted, hairline border, icon + label; fades in on hover. */
+#{$open} [class*="_bodyWrap"] > [class*="_inspectButton"]{position:absolute!important;z-index:2;margin:0!important;right:12px;bottom:10px;
+  display:inline-flex!important;align-items:center;gap:5px;height:24px;padding:0 9px 0 7px!important;
+  font-size:12px!important;line-height:24px!important;font-weight:500;color:var(--dsw-alias-label-secondary)!important;
+  border:.5px solid var(--dsw-alias-border-l2)!important;border-radius:7px!important;
+  background:color-mix(in srgb,var(--dsw-alias-bg-base,#fff) 82%,transparent)!important;
+  -webkit-backdrop-filter:blur(8px) saturate(1.4);backdrop-filter:blur(8px) saturate(1.4);
+  box-shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.06)!important;
+  opacity:0;transform:translateY(2px);transition:opacity .15s ease,transform .15s ease,color .12s,background-color .12s}
+#{$open} [class*="_bodyWrap"] > [class*="_inspectButton"] > svg{display:none!important}
+#{$open} [class*="_bodyWrap"] > [class*="_inspectButton"]::before{content:"";flex:none;width:13px;height:13px;background:currentColor;
+  -webkit-mask:$expand-tg center/13px 13px no-repeat;mask:$expand-tg center/13px 13px no-repeat}
+#{$open} [class*="_bodyWrap"]:hover > [class*="_inspectButton"],#{$open} [class*="_bodyWrap"] > [class*="_inspectButton"]:focus-visible{opacity:1;transform:none}
+#{$open} [class*="_bodyWrap"] > [class*="_inspectButton"]:hover{color:var(--dsw-alias-label-primary)!important;
+  background:var(--dsw-alias-bg-base,#fff)!important}
+/* ---- terminal: 「$ command」 + output well. Shared by real runs and by the terminal a never-ran
+   call gets (fixCommandInput), so both look and behave identically. ---- */
+/* the vars dsh's terminalBody sets; a never-ran call's terminal has no terminalBody ancestor */
+#{$open} [class*="_terminal"]{padding:0!important;overflow:hidden!important;
+  --dsl-terminal-font:var(--dsw-font-markdown-code-block-small);--dsl-terminal-line-height:18px;
+  --dsl-terminal-output-max-height:224px;--dsl-terminal-command-whitespace:pre-wrap}
+#{$open} [class*="_terminal"] > [class*="_header_"]{margin:0!important;padding:8px 16px!important;min-height:0!important;
+  border-bottom:1px solid var(--dsw-alias-border-l1)!important;border-radius:0!important;background:transparent!important}
+#{$open} [class*="_terminal"] [class*="_cwd_"],#{$open} [class*="_terminal"] [class*="_runState"]{display:none!important}
+/* a never-ran block built on the fallback classes (no native terminal was mounted to sample) has no
+   native header cap; give it the same 150px cap + inner scroll a real terminal's command area has */
+#{$open} [class*="_terminal"][data-dcd-group-fb] > [class*="_header_"]{max-height:150px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--dsw-alias-border-l2) transparent}
+/* one 「$」 per command: dsh splits a multi-line command into prompt lines (continuation lines get no
+   prompt); a never-ran command is one wrapping span, so it also gets exactly one */
+#{$open} [class*="_terminal"] [class*="_command_"]{display:block;white-space:pre-wrap;word-break:break-word;
+  font-size:calc(var(--dsh-code-font-size,11px) + 1px)!important;line-height:calc(18px + var(--dsh-code-font-delta,0px))!important;color:var(--dsw-alias-label-primary)!important}
+#{$open} [class*="_terminal"] [class*="_command_"]::before{content:"$ ";color:var(--dsw-alias-label-tertiary)}
+#{$open} [class*="_terminal"] [class*="_promptLine_"] ~ [class*="_promptLine_"] [class*="_command_"]::before{content:none}
+/* output: capped height, scrolls inside */
+#{$open} [class*="_terminal"] > [class*="_output_"]{margin:0!important;padding:8px 16px 12px!important;max-height:clamp(180px,34vh,420px)!important;overscroll-behavior:contain;
+  overflow-y:auto!important;overflow-x:hidden!important;
+  color:var(--dsw-alias-label-primary)!important;scrollbar-width:thin;scrollbar-color:var(--dsw-alias-border-l2) transparent}
+#{$open} [class*="_terminal"] > [class*="_output_"] [class*="_line_"]{font-size:calc(var(--dsh-code-font-size,11px) + .5px)!important;line-height:calc(17px + var(--dsh-code-font-delta,0px))!important;color:inherit!important}
+/* copy: plain text, no dsh fill behind it */
+#{$open} [class*="_terminal"] [class*="_copyButton"]{font-size:12px!important;line-height:18px!important;color:var(--dsw-alias-label-tertiary)!important;min-width:28px;text-align:right;
+  background:transparent!important;border:0!important;box-shadow:none!important}
+#{$open} [class*="_terminal"] [class*="_copyButton"]:hover{color:var(--dsw-alias-label-secondary)!important}
+/* The whale row is the third line of the live block conversation-flow draws (counts / the call in flight /
+   this row): give it no flow gap and no hairline of its own, so the three lines read as one block
+   instead of a status row parked under the transcript */
+[data-chat-running]{--dsh-chat-flow-gap:0px!important}
+[data-chat-running] > [class*="_runningDivider"]{display:none!important}
+[data-chat-running] [class*="_runningContent"]{margin-top:0!important;height:auto!important;min-height:calc(26px + var(--dsh-content-font-delta,0px))}
+
+/* a call that never started: tool name instead of the raw error text (the error stays in the body / tooltip) */
+[data-dcd-group-title]{font-size:0!important;letter-spacing:0!important}
+[data-dcd-group-title]::before{content:attr(data-dcd-group-title);font-size:var(--dsh-content-font-size,14px)}
+/* a failed call says so once, quietly: plain red 失败 / Failed before the › (dsh keeps its own word
+   visually hidden). dsh's 「• 退出码 1」 chip on the row goes; the exit code stays, as plain text, in
+   the command's own header once the row is opened */
+#{$open} #{$row}[data-state="error"]::before{content:"失败";order:2;flex:none;margin-left:auto;
+  font-size:var(--dsh-content-font-size,14px);line-height:calc(22px + var(--dsh-content-font-delta,0px));color:var(--dsw-alias-label-danger,#e5484d)}
+#{$open} #{$row}[data-state="error"] [class*="_badge"]{display:none!important}
+#{$open} [class*="_terminal"] [class*="_header_"] [class*="_status_"]{padding:0!important;background:transparent!important;box-shadow:none!important;
+  font-size:calc(var(--dsh-code-font-size,11px) + .5px)!important;color:var(--dsw-alias-label-danger,#e5484d)!important;opacity:.85}
+html[lang^="en"] #{$open} #{$row}[data-state="error"]::before{content:"Failed"}
+#{$open} #{$row}[data-state="error"]::after{order:3;margin-left:8px}
+/* any other tool's result (交付文件 · Presented …): the same band, not dsh's rounded #232324 slab */
+#{$open} [class*="_root"]:has(>pre[class*="_output"]){padding:0!important;border-top:1px solid var(--dsw-alias-border-l1)!important;
+  background:var(--dcd-band)!important}
+#{$open} [class*="_root"] > pre[class*="_output"]{margin:0!important;padding:8px 16px 10px!important;border:0!important;border-radius:0!important;
+  background:transparent!important;box-shadow:none!important;font-size:calc(var(--dsh-code-font-size,11px) + .5px)!important;line-height:calc(17px + var(--dsh-code-font-delta,0px))!important;color:var(--dsw-alias-label-secondary)!important;
+  max-height:clamp(160px,30vh,360px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--dsw-alias-border-l2) transparent}
+#{$open} [class*="_root"]:has(>pre[class*="_output"]) > button[class*="_inspect"]{margin:0 16px 10px!important;padding:2px 0!important}
+/* file preview (读取 etc.): same band, header and body on the row's 16px inset */
+#{$open} [class*="_bodyWrap"] > [class*="_card_"] > [class*="_header_"]{padding:8px 16px 6px!important;background:transparent!important}
+/* every opened body is a reading pane, not a page: capped against the viewport so a long file or a
+   long thought cannot own the screen, scrolls inside itself, and hands the wheel back at its end */
+#{$open} [class*="_bodyWrap"] > [class*="_card_"] > [class*="_body_"]{padding:4px 16px 12px!important;
+  max-height:clamp(200px,40vh,520px);overflow:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--dsw-alias-border-l2) transparent}
+/* a failed-argument call keeps its React-owned ioCard in the DOM (removing a child React still
+   references makes its next render throw) and hides it while our terminal stands beside it */
+[data-dcd-group-fb-src]{display:none!important}
+
+/* the picture a row's own call named, at the right end of the row: a real thumb you can click to see
+   the file full size. It is appended only after the file has decoded, so a bogus path leaves an
+   ordinary row behind instead of a broken frame. React may reconcile the row's children and drop our
+   node; the sweep in start() puts it back, and it is idempotent. */
+.dcd-group-rowthumb{flex:none;order:8;width:30px;height:30px;margin-left:auto;margin-right:6px;border-radius:5px;
+  border:1px solid var(--dsw-alias-border-l2);object-fit:cover;cursor:zoom-in;
+  background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base,transparent))}
+.dcd-group-rowthumb[data-state="loading"]{opacity:0;pointer-events:none}
+.dcd-group-rowthumb:hover{filter:brightness(1.06)}
+/* the lightbox a row thumb opens: ours, so it works without reaching into dsh's primitives */
+.dcd-group-peek{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;
+  padding:4vh 4vw;background:color-mix(in srgb,#000 62%,transparent);cursor:zoom-out}
+.dcd-group-peek img{max-width:92vw;max-height:92vh;border-radius:8px;box-shadow:0 18px 60px rgba(0,0,0,.45)}
+/* the tile takes the chevron's job (the auto margin) while it is there, and both are ordered after
+   the words, so the picture sits at the right edge with the chevron 6px behind it.
+   IMPORTANT is load-bearing: the chevron rule is OPEN ROW::after, four attribute selectors deep, so an
+   unscoped margin-left:0 here loses and BOTH auto margins then split the free space — the picture parks
+   in the middle of the row with a gap before the chevron. */
+[data-dcd-group-pic]::after{order:9;margin-left:0!important}
+/* a picture's body has dsh's own margin of 4px around it and nothing else, because in native mode the
+   row above it is a card of its own; inside our card the body is flush with the border, so it gets the
+   same 24px the row's words have, and a little air above and below the preview and its caption.
+   the caption is a child of the body (body > [preview slot, meta]), so the padding belongs to the
+   body alone — padding both put the file name a second indentation step to the right of its picture */
+.dcd-flow-card [data-chat-call-id] [class*="_imageBody"]{padding-inline:24px!important;margin-block:8px 12px!important}
+.dcd-flow-card [data-chat-call-id] [class*="_imageBody"] :is([class*="_imageMeta"],[class*="_imageExtra"]){padding-inline:0!important;margin-block:4px 0!important}
+.dcd-flow-card [data-chat-call-id] > :is([class*="_imageMeta"],[class*="_imageExtra"]){padding-inline:24px!important;margin-block:8px 12px!important}
+.dcd-flow-card [data-chat-call-id] [class*="_imageBody"] > *{border-radius:10px}

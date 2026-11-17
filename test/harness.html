@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh" data-ds-dark-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-conversation-enhancer · test harness</title>
+<style>
+  :root{
+    --dsw-alias-label-primary:#1f1e1d;--dsw-alias-label-secondary:#3d3d3a;--dsw-alias-label-tertiary:#8a8780;
+    --dsw-alias-label-danger:#e5484d;--dsw-alias-border-l1:rgba(31,30,29,.08);--dsw-alias-border-l2:rgba(31,30,29,.14);
+    --dsw-alias-bg-l1:#fff;--dsw-alias-bg-base:#f7f6f3;--dsw-alias-bg-module-platform:#eceae5;--dsw-alias-bg-layer-2:#fff;
+    --dsw-alias-interactive-bg-hover:rgba(31,30,29,.06);--dsw-alias-state-business-primary:#4d6bfe;--dsw-alias-border-focus:#4d8cff;
+    --dsw-specific-input-major:#fff;--dsw-specific-menu:#fff;--dsw-elevation-prominent:0 8px 28px rgba(0,0,0,.18);
+    --dsh-content-font-size:14px;--dsh-content-font-delta:0px;--dsh-code-font-size:11px;--dsh-code-font-delta:0px;
+    --dsh-font-family-code:ui-monospace,Menlo,monospace;
+    --shiki-token-function:#6f42c1;--shiki-token-keyword:#d73a49;--shiki-token-constant:#005cc5;--shiki-token-string:#032f62;--shiki-token-parameter:#e36209;--shiki-token-comment:#6a737d;
+  }
+  html[data-ds-dark-theme]{
+    --dsw-alias-label-primary:#ecebe6;--dsw-alias-label-secondary:#c9c7bf;--dsw-alias-label-tertiary:#8a8780;
+    --dsw-alias-border-l1:rgba(236,235,230,.08);--dsw-alias-border-l2:rgba(236,235,230,.16);
+    --dsw-alias-bg-l1:#262624;--dsw-alias-bg-base:#1f1e1d;--dsw-alias-bg-module-platform:#33322f;--dsw-alias-bg-layer-2:#2a2a28;
+    --dsw-alias-interactive-bg-hover:rgba(236,235,230,.08);--dsw-specific-input-major:#2a2a28;--dsw-specific-menu:#2a2a28;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:ui-sans-serif,-apple-system,"PingFang SC",sans-serif;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
+  #app{display:flex;flex-direction:column;height:100vh}
+  #bar{flex:none;display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--dsw-alias-bg-l1);border-bottom:1px solid var(--dsw-alias-border-l2);font-size:12px;flex-wrap:wrap}
+  #bar button{font:inherit;padding:4px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:inherit;cursor:pointer}
+  #bar button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+  #metrics{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);white-space:nowrap}
+  [data-conversation-scroll]{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 16px;scroll-behavior:auto}
+  [data-chat-flow]{max-width:760px;margin:0 auto;width:100%}
+  [data-slot="conversation.chat.flow"]{display:flex;flex-direction:column}
+  .flowItem{min-width:0}
+  /* mock native node visuals (approximate dsh) */
+  ._bubble{display:inline-block;background:#e9e7e2;border-radius:14px;padding:8px 14px;margin:6px 0;line-height:1.6}
+  html[data-ds-dark-theme] ._bubble{background:#33322f}
+  ._markdown{line-height:1.7;margin:6px 0}
+  ._markdown p{margin:0 0 .7em}
+  ._actions{display:flex;gap:6px;margin:2px 0 8px}
+  ._actions button{font:inherit;font-size:12px;color:var(--dsw-alias-label-tertiary);background:none;border:0;cursor:pointer;padding:2px 6px;border-radius:6px}
+  ._actions button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+  [data-chat-call-id]{margin:2px 0}
+  [data-disclosure-row]{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;background:none;font:inherit;font-size:14px;color:var(--dsw-alias-label-secondary);cursor:pointer;border-radius:10px;text-align:left}
+  [data-disclosure-row]:hover{background:var(--dsw-alias-interactive-bg-hover)}
+  ._leading{flex:none;width:16px;height:16px;border-radius:4px;background:var(--dsw-alias-border-l2)}
+  ._title{flex:none;font-weight:500}
+  ._summary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-tertiary)}
+  ._badge{flex:none;font-size:11px;color:var(--dsw-alias-label-danger)}
+  ._bodyWrap{padding:0 12px 8px;display:flex;flex-direction:column;gap:6px}
+  ._terminal{border-radius:8px;overflow:hidden;background:rgba(15,23,42,.04)}
+  html[data-ds-dark-theme] ._terminal{background:rgba(0,0,0,.28)}
+  ._header_{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--dsw-alias-border-l1)}
+  ._command_{font-family:var(--dsh-font-family-code);font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  ._copyButton{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+  ._output_{padding:8px 12px;max-height:220px;overflow:auto;font-family:var(--dsh-font-family-code);font-size:11.5px;line-height:17px}
+  ._line_{white-space:pre-wrap;word-break:break-word}
+  ._inspectButton{align-self:flex-end;font-size:12px;color:var(--dsw-alias-label-tertiary);background:none;border:0;cursor:pointer}
+  ._runningText{display:flex;align-items:center;gap:8px;padding:8px 0;color:var(--dsw-alias-label-secondary);font-size:14px}
+  ._older{text-align:center}
+  [data-testid="todo-panel"]{position:absolute;left:0;top:0}
+  #todo-seat{position:relative;height:0}
+</style>
+</head>
+<body data-ds-dark-theme="">
+<div id="app">
+  <div id="bar">
+    <strong style="font-size:13px">display harness</strong>
+    <button data-act="normal">标准</button>
+    <button data-act="thinking">思考</button>
+    <button data-act="verbose">详尽</button>
+    <button data-act="dark">深色/浅色</button>
+    <button data-act="lang">中/英</button>
+    <button data-act="stream">流式一轮</button>
+    <button data-act="heavy">压力流式</button>
+    <button data-act="scroll">滚动测试</button>
+    <button data-act="reset">重置</button>
+    <span id="metrics">idle</span>
+  </div>
+  <div data-conversation-scroll id="scroller">
+    <div data-chat-flow id="chatflow">
+      <div class="_older"><button id="older-btn" type="button">加载更早</button></div>
+      <div data-slot="conversation.chat.flow" id="flow"></div>
+    </div>
+  </div>
+  <div id="todo-seat"></div>
+</div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="harness.js"></script>
+<script src="../client.js"></script>
+<script src="scenarios.js"></script>
+</body>
+</html>

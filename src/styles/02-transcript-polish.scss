@@ -1,0 +1,61 @@
+@use 'shared' as *;
+
+/*!
+ * Styles for transcript-polish (parts/02-transcript-polish.ts): the calmer turn header, the
+ * reply-action row (per-button show/fold/hide markers, the ⋯ overflow and its menu), and the
+ * bundle's own plugin page (motion row + the draggable 回复操作按钮 list).
+ */
+/* calmer turn header: no rule under 已完成 · 用时 */
+[data-conversation-scroll] [data-chat-flow-kind=turn-process] button[data-turn-process]{border-bottom-color:transparent!important;box-shadow:none!important}
+/* message-edit (@linxin666/dsh-client-ui-message-edit): its 编辑并重发 row sits at the end of the turn, far from
+   the message it forks; hide that row and offer the same action from the user message's own action bar */
+[data-dcd-act-fork-src]{display:none!important}
+.dcd-act-fork svg{display:block}
+/* reply-action row: tighter than dsh's 8px so the icons read as one cluster, like Codex */
+[data-chat-flow-kind="turn-tail"] [class*="_actions"]{gap:2px}
+/* metadata reads last, split around the ⋯ overflow: usage chip, then ⋯, then time.
+   endInfo becomes display:contents so its children join the bar's flex order */
+[data-chat-flow-kind="turn-tail"] [class*="_endInfo"]{display:contents!important}
+[data-chat-flow-kind="turn-tail"] [class*="_endInfo"] > *{order:998}
+[data-chat-flow-kind="turn-tail"] [class*="_endInfo"] > :first-child{margin-left:4px}
+[data-chat-flow-kind="turn-tail"] [class*="_endInfo"] > [class*="_timeEnd"]{order:1000;margin-left:2px}
+[data-chat-flow-kind="turn-tail"] [class*="_visuallyHidden"]{order:900}
+/* per-button display chosen in Settings: fold into the ⋯ menu, or hide outright */
+[data-dcd-act-fold]{display:none!important}
+[data-dcd-act-hide]{display:none!important}
+/* the ⋯ overflow: three fine dots, quieter than the action icons (Codex-style), between usage and time */
+.dcd-act-more{color:var(--dsw-alias-label-tertiary);order:999}
+.dcd-act-more:hover{color:var(--dsw-alias-label-secondary)}
+.dcd-act-more svg{display:block}
+.dcd-act-menu{box-sizing:border-box;position:fixed;z-index:1100;min-width:180px;padding:6px;border-radius:var(--dsw-radius-lg,14px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent,0 8px 28px rgba(0,0,0,.18));color:var(--dsw-alias-label-primary);font-size:13.5px;line-height:20px;animation:dcd-act-in .14s cubic-bezier(.2,.8,.2,1) both}
+@keyframes dcd-act-in{from{opacity:0;transform:translateY(4px)}}
+/* the exit: closeMenu() holds the menu one beat under data-closing, then removes it */
+.dcd-act-menu[data-closing]{animation:dcd-act-out .12s ease-in forwards}
+@keyframes dcd-act-out{to{opacity:0;transform:translateY(4px)}}
+@media (prefers-reduced-motion:reduce){.dcd-act-menu{animation:none}}
+html[data-dcd-anim="off"] .dcd-act-menu{animation:none}
+.dcd-act-menu button{display:flex;align-items:center;gap:10px;width:100%;min-height:32px;padding:6px 10px;border:0;border-radius:9px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;white-space:nowrap}
+.dcd-act-menu button:hover,.dcd-act-menu button:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+.dcd-act-menu button:focus-visible{outline:none}
+.dcd-act-menu button svg{flex:none;width:15px;height:15px}
+/* the bundle's own plugin page (侧边栏 › 插件 › 已安装 › 对话显示) */
+.dcd-act-page{display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:13.5px;line-height:20px}
+.dcd-act-note{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--dsw-alias-label-primary) 5%,transparent);color:var(--dsw-alias-label-secondary);font-size:12.5px;line-height:19px}
+.dcd-act-note svg{flex:none;width:14px;height:14px;margin-top:2px;color:var(--dsw-alias-label-tertiary)}
+.dcd-act-head{margin:16px 0 2px;font-size:14px;font-weight:600}
+.dcd-act-desc{margin:0 0 6px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.dta-list{padding:0}
+.dta-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px}
+.dta-item:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.dta-item[data-dragging]{background:var(--dsw-alias-interactive-bg-hover);box-shadow:var(--dsw-elevation-prominent,0 4px 14px rgba(0,0,0,.12))}
+.dta-ico{flex:none;width:16px;height:16px;color:var(--dsw-alias-label-secondary);display:flex;align-items:center;justify-content:center}
+.dta-ico svg{width:15px;height:15px}
+.dta-lbl{flex:1 1 auto;min-width:0;@include ellipsis}
+.dta-mode,.dta-grip{flex:none;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.dta-mode:hover,.dta-grip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.dta-mode svg{width:15px;height:15px}
+.dta-grip svg{width:14px;height:14px}
+.dta-grip{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.dta-item[data-dragging]{user-select:none;-webkit-user-select:none}
+.dta-item[data-dragging] .dta-grip{cursor:grabbing}
+.dta-foot{padding:8px 10px 0;color:var(--dsw-alias-label-tertiary);font-size:12px}

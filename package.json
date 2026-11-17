@@ -1,0 +1,55 @@
+{
+  "name": "dsh-conversation-enhancer",
+  "version": "1.0.0",
+  "description": "An enhancer for the conversation view of DeepSeek Harness: its own work-details view (with dsh's folding pinned off), folded tool-call groups, an inline plan card, one reading size and one sans across replies, and command colours.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node ./scripts/verify-corner-shape.mjs .",
+    "typecheck": "tsc -p . --noEmit",
+    "pretest": "node build.mjs",
+    "test": "node --test-force-exit --test test/pure.test.mjs test/static.test.mjs test/dom.test.mjs test/rows.test.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "devDependencies": {
+    "sass": "1.108.2",
+    "typescript": "7.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DaYangtuo247/dsh-conversation-enhancer.git"
+  },
+  "homepage": "https://github.com/DaYangtuo247/dsh-conversation-enhancer#readme",
+  "bugs": {
+    "url": "https://github.com/DaYangtuo247/dsh-conversation-enhancer/issues"
+  }
+}

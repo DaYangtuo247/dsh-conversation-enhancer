@@ -1,0 +1,30 @@
+// Shared by 00-shared.scss (the base block) and 08-conversation-flow.scss (the thought / run heads), so
+// every quiet summary line stays one button under the cursor.
+$summary-heads: ':is(.dcd-group-head,.dcd-group-now,.dcd-flow-head,.dcd-plan-sum)';
+
+// Declaration bundles used by several modules. @include expands in place, so the compiled CSS is
+// unchanged; the point is to keep the repeated bits (and their exact var fallbacks) in one place.
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin focus-ring($offset: 2px) {
+  outline: 2px solid var(--dsw-alias-border-focus, #4d8cff);
+  outline-offset: $offset;
+}
+
+@mixin focus-ring-plain {
+  outline: 2px solid var(--dsw-alias-border-focus, #4d8cff);
+}
+
+@mixin icon-box($size: null) {
+  flex: none;
+  display: grid;
+  place-items: center;
+  @if $size {
+    width: $size;
+    height: $size;
+  }
+}

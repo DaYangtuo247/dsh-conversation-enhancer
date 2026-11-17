@@ -1,0 +1,12 @@
+@use 'shared' as *;
+
+/*!
+ * Styles for auto-older (parts/09-auto-older.ts): the 「加载更早」 button reads as a quiet status
+ * line once the part presses it for the reader — still a real button (keyboard, and a fallback).
+ */
+$older-button: '[data-chat-flow] > [class*="_older"] > button';
+#{$older-button}{all:unset;box-sizing:border-box;display:block;margin:4px auto 12px;padding:4px 10px;border-radius:6px;cursor:pointer;
+  font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+#{$older-button}:hover{color:var(--dsw-alias-label-secondary)}
+#{$older-button}:focus-visible{@include focus-ring-plain}
+#{$older-button}:disabled{cursor:default}

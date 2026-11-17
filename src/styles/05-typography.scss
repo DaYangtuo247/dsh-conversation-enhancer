@@ -1,0 +1,89 @@
+/*!
+ * Styles for typography (parts/05-typography.ts): the quiet reading voice — one sans
+ * stack, replies and bubbles at the reading size, quiet Markdown, warm per-theme text colours.
+ * $md-reply scopes replies only (reasoning keeps its own look); $bubble-user covers user / steering /
+ * question-reply / command-input bubbles, the inbox echoes of a message still waiting to be sent, and
+ * excludes dsh's tooltip chip, which shares the _bubble class word.
+ */
+$md-reply: '[data-chat-flow-kind="assistant-step"]:not([data-chat-group-part="reasoning"]) [class*="_markdown"]';
+// `[class*="_bubble"]` also catches dsh's tooltip chip (`_bubble_<hash>` — the same word, a different
+// thing): a message's action tooltip is rendered inside the message, so without the role guard it
+// inherits this bubble's tint, 18px radius and reading size instead of dsh's own dark label.
+// The seats alone are not enough. A message sent while a turn is running waits in the inbox, and
+// dsh draws that echo beside the running status as a bare row — no `[data-chat-flow-kind]` seat above
+// it, only `data-pending-steering` (steering) or `data-submission-echo` (queued) on its row. Those kept
+// dsh's default bubble, so the message the reader had just typed came out blue while their earlier
+// ones were grey: same text, same place, two looks, decided only by whether the turn was busy.
+// `command-input` is the reader's own `/goal` line: dsh's goal plugin draws its own `.bubble` in
+// GoalCommandInputView instead of reusing the user bubble, so it kept the same default tint and read
+// as a different kind of message than every other thing the reader types.
+$bubble-user: ':is([data-chat-flow-kind="user"],[data-chat-flow-kind="steering"],[data-chat-flow-kind="question-reply"],[data-chat-flow-kind="command-input"],[data-pending-steering],[data-submission-echo]) [class*="_bubble"]:not([class*="_bubbleWidth"],[role="tooltip"])';
+:root{
+  --dcd-type-sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Segoe UI","Microsoft YaHei",sans-serif;
+  --dcd-type-mono:ui-monospace,"SF Mono",Menlo,"JetBrains Mono",Consolas,"PingFang SC",monospace;
+  --dcd-type-leading:1.78}
+body{--dcd-type-size:calc(var(--dsh-content-font-size,14px) + 1.5px);--dcd-type-code-size:calc(var(--dsh-code-font-size,11px) + 1.5px)}
+
+/* the user's 界面字体 / 代码字体 (dsh sets --dsh-font-family-text / -code on <body>) go first, this stack is the fallback */
+body{font-family:var(--dsh-font-family-text,var(--dcd-type-sans)),var(--dcd-type-sans)!important;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;font-feature-settings:"kern","liga","calt";font-optical-sizing:auto}
+:where(code,pre,kbd,samp,[class*="_terminal"],[class*="_mono"]){font-family:var(--dsh-font-family-code,var(--dcd-type-mono)),var(--dcd-type-mono)!important}
+
+/* replies */
+#{$md-reply}{font-size:var(--dcd-type-size)!important;line-height:var(--dcd-type-leading)!important;letter-spacing:.003em}
+#{$md-reply} :is(p,li,blockquote,td,th){font-size:inherit!important;line-height:inherit!important;color:inherit}
+#{$md-reply} p{margin:0 0 .9em!important}
+#{$md-reply} > :last-child{margin-bottom:0!important}
+#{$md-reply} :is(ul,ol){margin:.25em 0 .85em!important;padding-left:1.4em!important}
+#{$md-reply} li{margin:.2em 0!important}
+#{$md-reply} li::marker{color:var(--dsw-alias-label-tertiary)}
+/* nested lists sit tight under their item; only the outer list gets air after it */
+#{$md-reply} li > :is(ul,ol){margin:.15em 0 .1em!important}
+#{$md-reply} li > p{margin:0 0 .3em!important}
+#{$md-reply} li > p:last-child{margin-bottom:0!important}
+/* task lists: the checkbox is the marker, no bullet beside it */
+#{$md-reply} :is(ul,ol).contains-task-list,#{$md-reply} ul:has(> li.task-list-item){list-style:none!important;padding-left:.15em!important}
+#{$md-reply} li.task-list-item{list-style:none!important}
+#{$md-reply} li.task-list-item::marker{content:none}
+#{$md-reply} li.task-list-item > input[type=checkbox]{margin:0 .5em 0 0!important;vertical-align:-.12em;accent-color:var(--dsw-alias-label-secondary)}
+/* tables: a clear header, compact rows, air around.
+   Vertical rhythm only: dsh bleeds wide tables (md-table-wide) into the side gutters with a
+   matched trio — negative margin-left, padding-left and a wider width — so clobbering the whole
+   margin here would drop the shift while keeping its compensation, sliding the table one gutter
+   into the page and off its right edge. */
+#{$md-reply} [class*="_tableScroll"]{margin-block:.4em .9em!important}
+#{$md-reply} table{margin:0!important;font-size:.95em!important;border-collapse:collapse}
+#{$md-reply} :is(th,td){padding:6px 18px 6px 0!important}
+#{$md-reply} th{font-weight:600!important;color:var(--dcd-type-text)!important;border-bottom:1px solid var(--dsw-alias-border-l1)!important}
+#{$md-reply} td{border-bottom:1px solid var(--dsw-alias-border-l2)!important}
+#{$md-reply} tr:last-child > td{border-bottom:0!important}
+#{$md-reply} pre{margin:.4em 0 1em!important}
+#{$md-reply} :is(h1,h2,h3,h4){font-weight:600!important;letter-spacing:-.005em;line-height:1.4!important;margin:1.6em 0 .5em!important}
+#{$md-reply} h3,#{$md-reply} h4{margin-top:1.3em!important}
+#{$md-reply} h1{font-size:1.4em!important}#{$md-reply} h2{font-size:1.22em!important}#{$md-reply} h3{font-size:1.08em!important}#{$md-reply} h4{font-size:1em!important}
+#{$md-reply} > :first-child{margin-top:0!important}
+#{$md-reply} strong{font-weight:600}
+#{$md-reply} blockquote{border-left:2px solid var(--dsw-alias-border-l2)!important;padding-left:1em!important;margin:.5em 0 .85em!important}
+#{$md-reply} a{text-underline-offset:2px;text-decoration-thickness:1px}
+#{$md-reply} :not(pre) > code{font-size:.88em!important;padding:.12em .36em!important;border-radius:5px!important;}
+#{$md-reply} pre, #{$md-reply} pre code{font-size:var(--dcd-type-code-size)!important;line-height:1.6!important}
+#{$md-reply} hr{border:0!important;border-top:1px solid var(--dsw-alias-border-l1)!important;margin:1.25em 0!important}
+
+/* user / steering / question-reply: the quiet bubble — a neutral warm tint of the text colour (not dsh's blue), rounder, roomier */
+#{$bubble-user}{font-size:var(--dcd-type-size)!important;line-height:1.65!important;padding:10px 16px!important;border-radius:18px!important;
+  background:color-mix(in srgb,var(--dcd-type-text,currentColor) 6%,transparent)!important;color:var(--dcd-type-text)!important;border:0!important;box-shadow:none!important}
+#{$bubble-user} *{font-size:inherit!important;line-height:inherit!important}
+#{$bubble-user} [class*="_question"]{color:var(--dcd-type-text-2)!important}
+#{$bubble-user} [class*="_answer"]{color:var(--dcd-type-text)!important}
+
+/* composer input at reading size */
+[data-composer-input]{font-size:var(--dcd-type-size)!important}
+
+/* text colours: a warm near-black instead of dsh's cool blue-black, softer quotes, light terracotta inline code */
+body:not([data-ds-dark-theme]){--dcd-type-text:#1f1e1d;--dcd-type-text-2:#3d3d3a;--dcd-type-code-bg:rgba(31,30,29,.055);--dcd-type-code-fg:#8a3b22}
+body[data-ds-dark-theme]{--dcd-type-text:#ecebe6;--dcd-type-text-2:#c9c7bf;--dcd-type-code-bg:rgba(236,235,230,.08);--dcd-type-code-fg:#f0a586}
+#{$md-reply}{color:var(--dcd-type-text)!important}
+#{$md-reply} :is(h1,h2,h3,h4),#{$md-reply} strong{color:var(--dcd-type-text)!important}
+#{$md-reply} blockquote{color:var(--dcd-type-text-2)!important}
+#{$md-reply} :not(pre) > code{background:var(--dcd-type-code-bg)!important;color:var(--dcd-type-code-fg)!important;border:0!important}
+[data-composer-input]{color:var(--dcd-type-text)!important}

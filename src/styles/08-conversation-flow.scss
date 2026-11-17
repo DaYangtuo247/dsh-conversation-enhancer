@@ -1,0 +1,248 @@
+@use 'shared' as *;
+
+/*!
+ * Styles for conversation-flow (parts/08-conversation-flow.ts + lib/flow-view.ts): the quiet-style turn list.
+ * Turn rhythm, the live line, thought / run / steps heads, thumbnails and the peek viewer.
+ * Folding is a grid-row transition (.dcd-flow-fold): a body opens from 0fr to 1fr and closes back,
+ * clipped by its first child, so nothing is unmounted to animate and nothing jumps.
+ */
+/* Two head shapes: a run/steps head sits inside .dcd-flow-line (the thumbnails are its siblings), a
+   thought head IS the line. Every rule below that talks about “a line's head” means both. */
+$head-line: '.dcd-flow-line > .dcd-flow-head';
+$head-thought: '.dcd-flow-thought > .dcd-flow-head';
+$heads: '#{$head-line},#{$head-thought}';
+
+.dcd-flow-root{display:contents}
+.dcd-flow-turn{display:flex;flex-direction:column;min-width:0}
+/* Off-screen turns skip layout and paint (as render-offscreen does for dsh's own rows).
+   contain-intrinsic-size:auto remembers each turn's size after its first paint, so the scrollbar
+   stays truthful without a forced measuring pass; 400px is only the before-first-paint guess. The
+   four newest turns are never skipped: they are what the eye lands on and what dsh follows. */
+.dcd-flow-turn:not(:nth-last-of-type(-n+4)):not(:empty):not(:hover):not(:focus-within){content-visibility:auto;contain-intrinsic-size:auto 400px}
+.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps{min-width:0}
+/* The mark is drawn inside a box the size of one line of text, and sits a hair low in it: its ink
+   is ~1px shorter than a CJK glyph's, so with both tops flush the icon read as floating above the
+   words, and half a pixel down puts the two centres on one line.
+   Both numbers are ratios of the reading size, not pixels: `--dsh-content-font-size` drives these
+   rows, so at a larger setting the words grow and the mark has to grow with them — a fixed 16px
+   box with a fixed .5px drop would drift apart. 16/14 and 0.5/14 keep the geometry the same at the
+   default 14px and let it scale (the measured pairs were 16px ink box / .5px drop). */
+$mark-size: calc(var(--dsh-content-font-size, 14px) * 1.142857); /* 16 / 14 */
+$mark-drop: calc(var(--dsh-content-font-size, 14px) * 0.035714); /* 0.5 / 14 */
+.dcd-flow-icon{@include icon-box($mark-size);margin-right:-1px;opacity:.85;transform:translateY(#{$mark-drop})}
+.dcd-flow-icon svg{display:block;width:100%;height:100%}
+/* the live line: under the group its work belongs to, indented to the card rows' column so that,
+   opened, the words on it are exactly the row it becomes. One line for as long as the turn runs —
+   the call in flight, the answer streaming, or the model thinking — and it never appears or
+   disappears while a tool runs; only its words change. */
+
+/* thinking reads apart from tool lines: its own bulb, and a warmer tint */
+#{$head-thought}{color:color-mix(in srgb,var(--dsw-alias-label-tertiary) 85%,#345eba)}
+#{$head-thought} .dcd-flow-icon{color:#4d6bfe;opacity:.8}
+/* the head's base block (reset, flex, gap, the hover wash, focus ring) is display-shared's, so a
+   run line, a thought line and a tool-group line feel like the same button under the cursor */
+/* a run or a steps line keeps its head inside .dcd-flow-line (the thumbnails sit beside it); a thought
+   line's head is a direct child — so the state tints and the chevron turn need both shapes */
+:is(.dcd-flow-run,.dcd-flow-steps)[data-busy] > #{$head-line},.dcd-flow-thought[data-busy] > .dcd-flow-head{color:var(--dsw-alias-label-secondary)}
+.dcd-flow-label{min-width:0;@include ellipsis}
+/* abbreviated thought text on a closed row: the duration keeps its width, the preview takes the
+   rest and ellipsizes, so a long reasoning never pushes the chevron or wraps the line */
+#{$head-thought} .dcd-flow-label{flex:none}
+.dcd-flow-preview{flex:1;min-width:0;@include ellipsis;
+  color:var(--dsw-alias-label-tertiary);opacity:.8}
+.dcd-flow-preview::before{content:'· ';opacity:.7}
+/* nothing in front of it: the thought's words stand alone on the line */
+.dcd-flow-live[data-bare] > .dcd-flow-preview::before{content:none}
+/* a wordless thought draws no row at all: keeping its height instead left a blank band between the
+   last row and dsh's own running line, which reads as something stuck. The line appears with its
+   first word, in one step */
+.dcd-flow-live[data-quiet]{display:none}
+/* words carried over between two steps: still there, not pretending to be the new thought */
+.dcd-flow-live[data-stale] > .dcd-flow-preview{opacity:.55}
+.dcd-flow-time{flex:none;font-variant-numeric:tabular-nums}
+.dcd-flow-err{flex:none;color:var(--dsw-alias-label-danger,#e5484d)}
+.dcd-flow-errsep{margin-left:-4px}
+.dcd-flow-errsep::before{content:'· ';opacity:.7;color:var(--dsw-alias-label-tertiary)}
+.dcd-flow-stop{flex:none;color:var(--dsw-alias-label-tertiary)}
+.dcd-flow-line{display:flex;align-items:center;gap:10px;min-width:0}
+/* A head is only as wide as its own content: the hover wash belongs to 「命令 ×8 ▸」, not to the whole
+   row, and the arrow stays next to the last word instead of drifting off to the far edge. */
+#{$head-line}{min-width:0;flex:0 1 auto}
+/* One text column, and one left edge. A head opens with its 16px mark and an 8px gap, so it sits
+   flush against the card's left border (no negative margin: the hover wash starts where the card
+   starts) and its words land 24px in. dsh pads a call header 16px, so the rows under the head are
+   given the 8px the mark takes — every word in the group, head and rows alike, starts on one x.
+   The right side is untouched: rows keep their 16px chevron gutter. */
+#{$heads}{margin-inline-start:0;padding-inline-start:0}
+/* …and no row carries a leading mark. A shell call holds its mark in a _leading slot (hidden by
+   the tool-groups rules), a plugin tool reports it as an _icon inside its header — hiding only the
+   first left two indents inside one card: 「Locate …」 at 165px and 「工具调用 · compress …」 at 210px
+   in the same list (measured). */
+.dcd-flow-card :is([class*="_icon"],[class*="_leading"]){display:none!important}
+/* every row's chevron sits at the right edge of the text column, not right after its words:
+   the thought rows (whose head is the line) already end there, and a run row whose chevron
+   hugged its（much shorter）label put two different right edges in the same card */
+/* image previews at the right of a call's line: what it drew or read, at a glance; click opens it.
+   Small enough to keep the line quiet, pushed to the right edge of the column. A fixed set of
+   tiles, so the row never gains and loses them; the label truncates before they do. */
+.dcd-flow-thumbs{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
+.dcd-flow-thumb{all:unset;box-sizing:border-box;display:block;width:44px;height:30px;border-radius:6px;overflow:hidden;cursor:zoom-in;
+  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-specific-input-major,transparent);transition:transform .12s ease,box-shadow .12s ease}
+.dcd-flow-thumb:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.dcd-flow-thumb:focus-visible{@include focus-ring(2px)}
+.dcd-flow-peek{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(0,0,0,.28);animation:dcd-flow-fade .12s ease}
+.dcd-flow-peek-win{display:flex;flex-direction:column;max-width:min(720px,90vw);max-height:min(620px,86vh);border-radius:12px;overflow:hidden;
+  background:var(--dsw-alias-bg-l1,#fff);border:1px solid var(--dsw-alias-border-l2);box-shadow:0 12px 40px rgba(0,0,0,.22);animation:dcd-flow-pop .14s ease}
+.dcd-flow-peek-bar{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 12px;border-bottom:1px solid var(--dsw-alias-border-l2);
+  font-size:12px;color:var(--dsw-alias-label-secondary)}
+.dcd-flow-peek-name{flex:1;min-width:0;@include ellipsis}
+.dcd-flow-peek-btn{all:unset;display:grid;place-items:center;width:24px;height:24px;border-radius:6px;cursor:pointer;color:var(--dsw-alias-label-tertiary);font-size:13px}
+.dcd-flow-peek-btn:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 8%,transparent);color:var(--dsw-alias-label-primary)}
+.dcd-flow-peek-body{min-height:0;overflow:auto;display:grid;place-items:center;padding:12px;
+  background:repeating-conic-gradient(color-mix(in srgb,var(--dsw-alias-label-primary) 4%,transparent) 0 25%,transparent 0 50%) 0 0/16px 16px}
+.dcd-flow-peek-body img{display:block;max-width:100%;max-height:calc(min(620px,86vh) - 62px);object-fit:contain;image-rendering:auto}
+@keyframes dcd-flow-fade{from{opacity:0}}@keyframes dcd-flow-pop{from{opacity:0;transform:scale(.97)}}
+@media (prefers-reduced-motion:reduce){.dcd-flow-peek,.dcd-flow-peek-win{animation:none}}
+html[data-dcd-anim="off"] :is(.dcd-flow-peek,.dcd-flow-peek-win){animation:none}
+.dcd-flow-thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:top left;opacity:0;transition:opacity .18s ease}
+.dcd-flow-more{all:unset;flex:none;padding:0 2px;cursor:pointer;font-size:var(--dsh-content-font-size,14px);color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.dcd-flow-more:hover{color:var(--dsw-alias-label-primary)}
+.dcd-flow-nav{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:1001;display:flex;align-items:center;gap:4px;padding:4px;border-radius:999px;corner-shape:round;
+  background:var(--dsw-specific-input-major,#fff);border:.5px solid var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18));font-size:12px;color:var(--dsw-alias-label-secondary)}
+.dcd-flow-nav button{all:unset;display:grid;place-items:center;width:28px;height:28px;border-radius:999px;corner-shape:round;cursor:pointer;font-size:18px;line-height:1;color:var(--dsw-alias-label-primary)}
+.dcd-flow-nav button:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 8%,transparent)}
+.dcd-flow-nav-text{padding:0 6px;max-width:50vw;@include ellipsis;font-variant-numeric:tabular-nums}
+.dcd-flow-chev{@include icon-box;transition:transform .15s ease}
+.dcd-flow-chev svg{display:block}
+:is(.dcd-flow-run,.dcd-flow-steps)[data-open] > #{$head-line} .dcd-flow-chev,.dcd-flow-thought[data-open] > .dcd-flow-head .dcd-flow-chev{transform:rotate(90deg)}
+/* a folded stretch of steps: 「思考× 3 · 工具× 2 ›」, opened: its lines on a thin rail.
+   flex:none: the counts keep their width, so a snippet after them ellipsizes instead */
+.dcd-flow-counts{display:inline-flex;gap:6px;flex:0 1 auto;min-width:0;overflow:hidden}
+.dcd-flow-dot{opacity:.7}
+.dcd-flow-live{box-sizing:border-box;display:flex;align-items:center;gap:8px;min-width:0;
+  height:calc(26px + var(--dsh-content-font-delta,0px));margin:2px -6px 2px -6px;padding:2px 6px;
+  font-size:var(--dsh-content-font-size,14px);line-height:calc(22px + var(--dsh-content-font-delta,0px));
+  color:var(--dsw-alias-label-secondary);user-select:none;-webkit-user-select:none}
+.dcd-flow-live[data-indent]{margin-left:18px}
+.dcd-flow-live > .dcd-flow-label{flex:none;min-width:0;max-width:62%;@include ellipsis}
+/* one line, always — and always the same height: the row swaps between a call's sentence and the
+   thought being written several times a turn, and a row that grew by a pixel on one of them made
+   everything above it (the counts line) bob as the live line changed. The height is pinned, so no
+   content can move it */
+.dcd-flow-live > .dcd-flow-preview{flex:1;min-width:0;@include ellipsis}
+/* the live line's words keep their end: the newest word sits against the clock, and a thought
+   longer than the row lets its beginning fall off the left edge — no typewriter, no page turning,
+   just text being written, at the speed it is written */
+.dcd-flow-live > .dcd-flow-preview-live{position:relative;display:flex;justify-content:flex-end;align-self:stretch;min-height:0;overflow:hidden}
+/* the outer dot is the live row's separator when the tail is empty and the stationary dot under
+   it when the tail is cut; take it out of the flex flow so it cannot push the right-packed tail */
+.dcd-flow-preview-live::before{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;pointer-events:none}
+.dcd-flow-tail{display:flex;align-items:center;flex:none;min-width:100%;width:max-content;white-space:nowrap;pointer-events:none}
+.dcd-flow-tail::before{content:'· ';opacity:.7;flex:none}
+.dcd-flow-preview-live[data-cut]{mask-image:linear-gradient(to right,transparent 0,#000 26px);
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 26px)}
+.dcd-flow-live .dcd-flow-icon{opacity:.85;flex:none}
+.dcd-flow-live .dcd-flow-time{flex:none;min-width:4.2ch;text-align:right;font-variant-numeric:tabular-nums;opacity:.7}
+.dcd-flow-live .dcd-flow-time[data-empty]{visibility:hidden}
+.dcd-flow-live .dcd-flow-time::before{content:'· ';opacity:.7}
+/* 「思考中…」 keeps the blue the thought rows have always had: the same voice, so the same colour */
+.dcd-flow-live[data-kind="think"]{color:color-mix(in srgb,var(--dsw-alias-label-tertiary) 85%,#345eba)}
+.dcd-flow-live[data-kind="think"] .dcd-flow-icon{color:#4d6bfe;opacity:.8}
+/* fold: a body opens and closes on a grid-row transition instead of appearing / vanishing. The
+   first child clips (min-height:0 lets the 0fr track actually reach zero); spacing lives inside
+   it, so a closed body takes no room and an opening one grows into its own padding. @starting-style
+   gives a body that mounts open the same rise; browsers without it simply show it at once. */
+.dcd-flow-fold{display:grid;grid-template-rows:1fr;min-width:0;transition:grid-template-rows .22s cubic-bezier(.2,.8,.2,1),opacity .2s ease}
+.dcd-flow-fold[data-shut]{grid-template-rows:0fr;opacity:0;visibility:hidden;
+  transition:grid-template-rows .2s cubic-bezier(.4,0,.6,1),opacity .16s ease-in,visibility 0s .2s}
+@starting-style{.dcd-flow-fold:not([data-shut]){grid-template-rows:0fr;opacity:0}}
+.dcd-flow-fold > *{min-height:0}
+.dcd-flow-clip{overflow:hidden}
+.dcd-flow-steps-body{display:flex;flex-direction:column;margin:4px 0 6px 9px;padding-left:15px;border-left:1px solid var(--dsw-alias-border-l2);min-width:0}
+.dcd-flow-steps-body > :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin:1px 0}
+.dcd-flow-steps-body > [data-open] + *{margin-top:6px}
+/* shut, not unmounted: see the kept ref in Run — a body that is already in the tree reopens at
+   once, and nothing has to be rebuilt to show it again */
+.dcd-flow-body{min-width:0;overflow:hidden}
+/* tool calls share one card, drawn by the tool-groups card rules (rows bordered, first/last rounded) */
+.dcd-flow-card{min-width:0;padding-block:6px}
+/* thinking: the same quiet line as a command; opened, its text on a thin rule */
+/* A thought can run for pages; opening it must not push the answer off the screen. The block is a
+   reading pane: capped against the viewport (42vh, never more than 520px, never less than 200px) and
+   scrolling inside itself, with overscroll contained so a wheel at its end does not jump the
+   transcript. Same policy as dsh's own tool bodies, one size larger — thinking is what you read. */
+.dcd-flow-thought-text{margin:4px 0 6px 9px;padding:0 0 0 15px;border-left:2px solid var(--dsw-alias-border-l2);border-radius:0;
+  font-size:calc(var(--dsh-content-font-size,14px) - .5px);line-height:1.75;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;
+  max-height:clamp(200px,42vh,520px);overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--dsw-alias-border-l2) transparent}
+.dcd-flow-thought-text p{margin:0 0 .6em;white-space:pre-wrap}
+.dcd-flow-thought-text p:last-child{margin-bottom:0}
+.dcd-flow-thought-text code{font-family:var(--dsh-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:.9em;padding:1px 5px;border-radius:5px;
+  background:color-mix(in srgb,var(--dsw-alias-label-primary) 6%,transparent);color:var(--dsw-alias-label-primary)}
+.dcd-flow-thought-text strong{font-weight:600;color:var(--dsw-alias-label-primary)}
+/* live label: the soft shimmer across the text */
+.dcd-flow-shimmer{background:linear-gradient(90deg,var(--dsw-alias-label-tertiary) 0 35%,var(--dsw-alias-label-primary) 50%,var(--dsw-alias-label-tertiary) 65% 100%);
+  background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:dcd-flow-shimmer 2.2s linear infinite}
+@keyframes dcd-flow-shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.dcd-flow-shimmer{animation:none;background:none;color:var(--dsw-alias-label-secondary)}}
+/* motion: a new turn fades in (opacity only — anything taller would fight the scroll anchoring
+   that keeps the reading position); bodies fold open / shut on .dcd-flow-fold; thumbnails fade in once
+   their image has decoded */
+.dcd-flow-turn{animation:dcd-turn-in .22s ease-out}
+.dcd-flow-end{animation:dcd-in .16s cubic-bezier(.2,.8,.2,1)}
+.dcd-flow-thumb[data-state="ok"] img{opacity:1}
+/* a preview is a picture or it is nothing: while it loads it must not show an empty frame, and one
+   that failed is dropped by Thumbs so the row does not gain and lose a tile between redraws */
+.dcd-flow-thumb[data-state="loading"]{opacity:0;pointer-events:none}
+.dcd-flow-thumb[data-state="failed"]{display:none}
+@media (prefers-reduced-motion:reduce){.dcd-flow-turn,.dcd-flow-end{animation:none}.dcd-flow-fold,.dcd-flow-fold[data-shut]{transition:none}.dcd-flow-thumb img{transition:none;opacity:1}}
+html[data-dcd-anim="off"] :is(.dcd-flow-turn,.dcd-flow-end){animation:none}
+html[data-dcd-anim="off"] :is(.dcd-flow-fold,.dcd-flow-fold[data-shut]){transition:none}
+html[data-dcd-anim="off"] .dcd-flow-thumb img{transition:none;opacity:1}
+/* rhythm: the process lines of a step sit close together, with air before and after the text */
+.dcd-flow-turn{padding:6px 0 22px}
+/* live, the whale row follows immediately: the live block is the three lines, not a turn that ends
+   and a status row that starts somewhere below it */
+.dcd-flow-turn[data-live]{padding-bottom:0}
+.dcd-flow-turn > :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin:1px 0}
+.dcd-flow-turn > [data-chat-flow-kind="user"] + :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin-top:10px}
+.dcd-flow-turn > :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps) + [data-chat-flow-kind="assistant-step"]{margin-top:12px}
+.dcd-flow-turn > [data-chat-flow-kind="assistant-step"] + :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin-top:14px}
+.dcd-flow-turn > [data-open] + :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin-top:6px}
+.dcd-flow-card > [data-chat-flow-key]{margin:0!important}
+/* a turn that was stopped or failed ends on a quiet line: dsh's own 「已停止」/「处理失败」 header
+   (which replaces 「已完成，用时」) is one of the rows this view takes over, so say it here */
+.dcd-flow-end{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:var(--dsh-content-font-size,14px);
+  line-height:calc(22px + var(--dsh-content-font-delta,0px));color:var(--dsw-alias-label-tertiary)}
+.dcd-flow-end .dcd-flow-icon{opacity:.6}
+.dcd-flow-end[data-failed]{color:var(--dsw-alias-label-danger,#e5484d)}
+/* ---- the rows and cards dsh still draws: a slash command (/goal), an injected document
+   (dsh-doc, a recalled memory), the system prompt, a skill's instructions, the compaction marker,
+   a question's answer card. The flow takes over the thinking lines and the tool runs; everything
+   else stays native, and natively it is a 24px line at 13px beside a 16+6px glyph box, its body
+   laid on the code-block well — a cool blue-white that reads as a different surface from every
+   card around it. These sit in the same column and are read in the same breath as our rows, so
+   they take our rhythm — a 22px line at 14px, 8px after the glyph — and our two surfaces: the
+   quiet grey band a tool body opens into, a hairline and a 12px radius for a card. The tool rows
+   are left alone on purpose: inside an open run they carry a 44px header of their own. */
+$native-kind: ':is([data-chat-flow-kind="command"],[data-chat-flow-kind="context"],[data-chat-flow-kind="system-prompt"])';
+#{$native-kind} [data-disclosure-row]{height:calc(22px + var(--dsh-content-font-delta,0px))!important}
+#{$native-kind} [data-disclosure-row] :is([class*="_title"],[class*="_source"],[class*="_summary"]){
+  font-size:var(--dsh-content-font-size,14px)!important;
+  line-height:calc(22px + var(--dsh-content-font-delta,0px))!important}
+#{$native-kind} [class*="_leading"]{margin-right:8px!important}
+/* a skill card keeps a row element of its own instead of a disclosure row: same line, same glyph gap */
+[data-chat-flow] [data-tool="skill"] > [class*="_row"]{height:calc(22px + var(--dsh-content-font-delta,0px))!important}
+[data-chat-flow] [data-tool="skill"] [class*="_leading"]{margin-right:8px!important}
+[data-chat-flow] [data-tool="skill"] :is([class*="_title"],[class*="_summary"]){
+  font-size:var(--dsh-content-font-size,14px)!important;line-height:calc(22px + var(--dsh-content-font-delta,0px))!important}
+/* the compaction marker sizes its own sticky header from this line, so moving the line moves both */
+[data-chat-flow] [class*="_compactionRow"]{--dsh-compaction-header-height:calc(22px + var(--dsh-content-font-delta,0px))}
+/* a question card settles its answers on the reading line, not on dsh's 24px grid */
+[data-chat-flow] [class*="_card"]:has(> [class*="_item"] > [class*="_question"]){gap:12px!important;padding:14px 16px!important;border-radius:12px!important}
+[data-chat-flow] [class*="_card"]:has(> [class*="_item"] > [class*="_question"]) :is([class*="_question"],[class*="_answer"]){
+  line-height:calc(22px + var(--dsh-content-font-delta,0px))!important}
+/* every expanded body takes the grey well the tool rows open into, not dsh's blue-tinted code block */
+$native-well: ':is([data-chat-flow-kind="command"],[data-chat-flow-kind="context"],[data-chat-flow-kind="system-prompt"]) [class*="_body"]:not([class*="_bodyWrap"]),[data-tool="skill"] [class*="_instructionsCard"]';
+$native-well-scope: '[data-chat-flow] #{$native-well}';
+#{$native-well-scope}{background:var(--dcd-band,rgba(15,23,42,.045))!important;border-color:var(--dsw-alias-border-l1)!important;border-radius:12px!important}

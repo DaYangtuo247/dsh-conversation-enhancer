@@ -1,0 +1,8 @@
+/*!
+ * Styles for render-offscreen (parts/07-render-offscreen.ts): content-visibility:auto on flow
+ * rows far from the viewport, with the exceptions that keep paint containment from showing
+ * (the live tail, hovered / focused rows, empty rows dsh collapses to height 0).
+ */
+$flow-ro: '[data-conversation-scroll] [data-slot="conversation.chat.flow"]';
+#{$flow-ro} > [data-chat-flow-key]:not(:nth-last-child(-n+8)):not(:empty):not([data-turn-process-hidden]):not(:hover):not(:focus-within):not(:has(>[data-slot="conversation.chat.node"]:empty)){
+  content-visibility:auto;contain-intrinsic-size:auto 160px}

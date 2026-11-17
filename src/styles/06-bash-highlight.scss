@@ -1,0 +1,23 @@
+/*!
+ * Styles for bash-highlight (parts/06-bash-highlight.ts): the CSS Custom Highlight API colours.
+ * Command tokens (dbh-*) borrow the code theme's shiki tokens so they follow 外观 › 代码主题;
+ * output marks (dbo-*) are the lighter pass over terminal text. Rules are scoped to the elements
+ * that carry highlights — a bare ::highlight() makes the browser cost a style pass per element.
+ */
+[data-command-text]::highlight(dbh-cmd){color:var(--shiki-token-function,#6f42c1)}
+[data-command-text]::highlight(dbh-kw){color:var(--shiki-token-keyword,#d73a49)}
+[data-command-text]::highlight(dbh-flag){color:var(--shiki-token-constant,#005cc5)}
+[data-command-text]::highlight(dbh-str){color:var(--shiki-token-string,#032f62)}
+[data-command-text]::highlight(dbh-var){color:var(--shiki-token-parameter,var(--shiki-token-constant,#e36209))}
+[data-command-text]::highlight(dbh-op){color:var(--shiki-token-keyword,#d73a49)}
+[data-command-text]::highlight(dbh-num){color:var(--shiki-token-constant,#005cc5)}
+[data-command-text]::highlight(dbh-cmt){color:var(--shiki-token-comment,#6a737d);font-style:italic}
+[data-dbh-out]::highlight(dbo-err){color:var(--dsw-alias-label-danger,#e5484d)}
+[data-dbh-out]::highlight(dbo-warn){color:#d29922}
+[data-dbh-out]::highlight(dbo-ok){color:#3fb950}
+[data-dbh-out]::highlight(dbo-num){color:var(--shiki-token-constant,#005cc5)}
+[data-dbh-out]::highlight(dbo-str){color:var(--shiki-token-string,#032f62)}
+[data-dbh-out]::highlight(dbo-path){color:var(--shiki-token-function,#6f42c1)}
+[data-dbh-out]::highlight(dbo-cmt){color:var(--shiki-token-comment,#6a737d)}
+[data-dbh-out]::highlight(dbo-add){color:#3fb950}
+[data-dbh-out]::highlight(dbo-del){color:var(--dsw-alias-label-danger,#e5484d)}
