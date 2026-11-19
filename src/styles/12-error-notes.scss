@@ -1,0 +1,17 @@
+/*!
+ * Styles for error-notes (parts/12-error-notes.ts): the line under a 本轮运行失败 row with the error
+ * body's other fields (HTTP 429 · type rate_limit_error · code …), or the body itself when it had
+ * no message. It sits in the row's text column (dsh's 10px dot + 8px gap), as quiet as the row's
+ * code badge: keys in the label colour, values in the code font.
+ */
+$note-font: var(--dsh-content-font-size-secondary, 13px);
+/* the row's own size and rhythm (dsh: secondary size, 20px lines), so the line reads as the row's second line */
+.dcd-err-note{display:grid;gap:4px;margin:0 0 6px 18px;font-size:$note-font;line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px));color:var(--dsw-alias-label-tertiary)}
+.dcd-err-fields{display:flex;flex-wrap:wrap;gap:0 16px}
+.dcd-err-fields > span{display:inline-flex;align-items:baseline;gap:6px;min-width:0}
+.dcd-err-fields i{font-style:normal}
+/* mono digits read larger than the sans around them: 1px under, the way dsh sizes its code badge */
+.dcd-err-fields code{font-family:var(--ds-font-family-code,ui-monospace,monospace);font-size:calc(#{$note-font} - 1px);color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
+.dcd-err-json{margin:0;padding:2px 0 2px 10px;border-left:2px solid var(--dsw-alias-border-l2,rgba(0,0,0,.08));max-height:12lh;overflow:auto;
+  font-family:var(--ds-font-family-code,ui-monospace,monospace);font-size:calc(#{$note-font} - 1px);line-height:20px;
+  color:var(--dsw-alias-label-secondary);white-space:pre-wrap;overflow-wrap:anywhere}

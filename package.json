@@ -25,7 +25,7 @@
     "check": "node ./scripts/verify-corner-shape.mjs .",
     "typecheck": "tsc -p . --noEmit",
     "pretest": "node build.mjs",
-    "test": "node --test-force-exit --test test/pure.test.mjs test/static.test.mjs test/dom.test.mjs test/rows.test.mjs"
+    "test": "node --test-force-exit --test test/pure.test.mjs test/static.test.mjs test/dom.test.mjs test/rows.test.mjs test/error-notes.test.mjs"
   },
   "dsh": {
     "bundle": {
