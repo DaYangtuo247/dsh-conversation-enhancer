@@ -1,4 +1,4 @@
-/*! dsh-conversation-enhancer v1.0.0 — built by build.mjs from src/lib/dom.js, src/lib/flow-view.js, src/lib/native.js, src/styles/00-shared.scss, src/styles/01-transcript-view.scss, src/styles/02-transcript-polish.scss, src/styles/03-tool-groups.scss, src/styles/04-plan-checklist.scss, src/styles/05-typography.scss, src/styles/06-bash-highlight.scss, src/styles/07-render-offscreen.scss, src/styles/08-conversation-flow.scss, src/styles/09-auto-older.scss, src/styles/10-user-markdown.scss, src/styles/12-error-notes.scss, src/parts/00-dom-hub.js, src/parts/00-shared.js, src/parts/01-transcript-view.js, src/parts/02-transcript-polish.js, src/parts/03-tool-groups.js, src/parts/04-plan-checklist.js, src/parts/05-typography.js, src/parts/06-bash-highlight.js, src/parts/07-render-offscreen.js, src/parts/08-conversation-flow.js, src/parts/09-auto-older.js, src/parts/10-user-markdown.js, src/parts/11-native-probe.js, src/parts/12-error-notes.js, src/parts/13-ptc-diffs.js. Edit src/, not this file. */
+/*! dsh-conversation-enhancer v1.0.0 — built by build.mjs from src/lib/dom.js, src/lib/flow-view.js, src/lib/native.js, src/lib/slot-wrap.js, src/styles/00-shared.scss, src/styles/01-transcript-view.scss, src/styles/02-transcript-polish.scss, src/styles/03-tool-groups.scss, src/styles/04-plan-checklist.scss, src/styles/05-typography.scss, src/styles/06-bash-highlight.scss, src/styles/07-render-offscreen.scss, src/styles/08-conversation-flow.scss, src/styles/09-auto-older.scss, src/styles/10-user-markdown.scss, src/styles/12-error-notes.scss, src/parts/00-dom-hub.js, src/parts/00-shared.js, src/parts/01-transcript-view.js, src/parts/02-transcript-polish.js, src/parts/03-tool-groups.js, src/parts/04-plan-checklist.js, src/parts/05-typography.js, src/parts/06-bash-highlight.js, src/parts/07-render-offscreen.js, src/parts/08-conversation-flow.js, src/parts/09-auto-older.js, src/parts/10-user-markdown.js, src/parts/11-native-probe.js, src/parts/12-error-notes.js, src/parts/13-ptc-diffs.js. Edit src/, not this file. */
 ;(() => {
 const BUNDLE = "dsh-conversation-enhancer"
 const parts = []
@@ -229,15 +229,16 @@ function makeFlowView(kit, require, M) {
         }), [props.useSession, props.useChat]);
     }
     const entriesSig = (entries) => entries.map((e) => `${e.key}:${e.groupPart || ''}`).join('|');
+    /** The same dsh flow, the same stores and cwd: what every memoized row below compares first. */
+    const sameHost = (a, b) => a.Native === b.Native && a.props.cwd === b.props.cwd
+        && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession;
     // memoized so a turn re-render does not redraw every native row: only the rows whose entries
     // actually changed call the native flow again (the streaming seat updates on its own regardless).
     // `lang` is a redraw signal: the seats read dsh's locale themselves, but a bailed memo would
     // keep their old strings on screen after a language switch.
     const NativeRows = React.memo(function NativeRows({ Native, props, quiet, entries, lang }) {
         return h(Native, { ...props, ...quiet, entries, pendingInputs: [] });
-    }, (a, b) => a.Native === b.Native && a.quiet === b.quiet && a.props.cwd === b.props.cwd
-        && a.lang === b.lang
-        && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession
+    }, (a, b) => sameHost(a, b) && a.quiet === b.quiet && a.lang === b.lang
         && entriesSig(a.entries) === entriesSig(b.entries));
     const CHEVRON = h('svg', { width: 12, height: 12, viewBox: '0 0 12 12', 'aria-hidden': true }, h('path', { d: V.CHEV_D, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' }));
     function useNow(on) {
@@ -509,9 +510,7 @@ function makeFlowView(kit, require, M) {
         // bundle is renamed too
         h('div', { className: 'dcd-flow-card dcf-card' }, h(NativeRows, { Native, props, quiet, lang, entries: rows.map((r) => r.entry) })))) : null);
     }, (a, b) => a.run === b.run && a.live === b.live && a.turnLive === b.turnLive && a.defaultOpen === b.defaultOpen
-        && a.view === b.view && a.lang === b.lang
-        && a.Native === b.Native && a.quiet === b.quiet && a.props.cwd === b.props.cwd
-        && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession);
+        && a.view === b.view && a.lang === b.lang && a.quiet === b.quiet && sameHost(a, b));
     /* ---------- thinking: a card that matches the tool card ---------- */
     /** Reasoning is prose with the odd `code` / **bold**: paragraphs, line breaks and those two marks. */
     function inline(text) {
@@ -611,6 +610,21 @@ function makeFlowView(kit, require, M) {
     }
     /** turn key -> the row keys / call ids / row words that turn wrote into the shared picture maps */
     const ownedPics = new Map();
+    /** Forget what a turn wrote into the picture maps, except what it still has (`keep`; null: all). */
+    const dropOwned = (turnKey, keep) => {
+        const was = ownedPics.get(turnKey);
+        if (!was)
+            return;
+        for (const k of was.keys)
+            if (!keep || !keep.keys.has(k))
+                rowPics.delete(k);
+        for (const k of was.ids)
+            if (!keep || !keep.ids.has(k))
+                rowPicsById.delete(k);
+        for (const k of was.texts)
+            if (!keep || !keep.texts.has(k))
+                rowPicsByText.delete(k);
+    };
     const Turn = React.memo(function Turn({ turn, last, openRuns, view, Native, props, quiet, lang }) {
         // the group the live line must sit under: the last run of the turn, whatever comes after it
         const lastRunItem = (() => { for (let i = turn.items.length - 1; i >= 0; i--)
@@ -696,34 +710,12 @@ function makeFlowView(kit, require, M) {
             for (const it of list)
                 for (const r of it.rows)
                     texts.add(rowText(r.node));
-            const was = ownedPics.get(turn.key);
-            if (was) {
-                for (const k of was.keys)
-                    if (!keys.has(k))
-                        rowPics.delete(k);
-                for (const k of was.ids)
-                    if (!ids.has(k))
-                        rowPicsById.delete(k);
-                for (const k of was.texts)
-                    if (!texts.has(k))
-                        rowPicsByText.delete(k);
-            }
+            dropOwned(turn.key, { keys, ids, texts });
             ownedPics.set(turn.key, { keys, ids, texts });
             return list;
         }, [turn, props.cwd]);
         // a turn that leaves the list (a session switch, an older page dropped) clears what it wrote
-        React.useEffect(() => () => {
-            const was = ownedPics.get(turn.key);
-            if (!was)
-                return;
-            for (const k of was.keys)
-                rowPics.delete(k);
-            for (const k of was.ids)
-                rowPicsById.delete(k);
-            for (const k of was.texts)
-                rowPicsByText.delete(k);
-            ownedPics.delete(turn.key);
-        }, [turn.key]);
+        React.useEffect(() => () => { dropOwned(turn.key, null); ownedPics.delete(turn.key); }, [turn.key]);
         const top = stretches(turn.items);
         const w = words();
         // A turn that was stopped or failed is never folded: dsh keeps its process open for exactly
@@ -808,8 +800,7 @@ function makeFlowView(kit, require, M) {
         // as a hitch whenever work advanced.
     }, (a, b) => a.turn.sig === b.turn.sig && a.turn.open === b.turn.open && a.turn.reason === b.turn.reason
         && a.last === b.last && a.openRuns === b.openRuns && a.view === b.view && a.lang === b.lang
-        && a.Native === b.Native && a.quiet === b.quiet && a.props.cwd === b.props.cwd
-        && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession);
+        && a.quiet === b.quiet && sameHost(a, b));
     // the tail (dsh's running line + pending inputs) is the native flow with no rows; memoized so a
     // streamed token does not redraw it — RunningStatus subscribes to the running state on its own.
     // pendingInputs is NOT self-subscribing: the panel retires a submission echo once its durable
@@ -817,9 +808,7 @@ function makeFlowView(kit, require, M) {
     // as a second copy of the message just sent, so its identity is part of the comparison.
     const Tail = React.memo(function Tail({ Native, props, lang }) {
         return h(Native, { ...props, entries: [] });
-    }, (a, b) => a.Native === b.Native && a.props.cwd === b.props.cwd && a.lang === b.lang
-        && a.props.pendingInputs === b.props.pendingInputs
-        && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession);
+    }, (a, b) => sameHost(a, b) && a.lang === b.lang && a.props.pendingInputs === b.props.pendingInputs);
     return { useQuiet, Turn, Tail };
 }
 
@@ -867,6 +856,63 @@ function probeNative(doc) {
         missing.push(row);
     }
     return missing;
+}
+
+// ===== src/lib/slot-wrap.js
+"use strict";
+/*!
+ * Wrapping dsh's own slot entries in place.
+ *
+ * Several parts change how one of dsh's own rows renders without drawing a rival: the conversation
+ * list (conversation-flow), a failed turn and a retry (error-notes), a program's edits (ptc-diffs).
+ * A rival entry cannot do that — dsh hands its render context (renderSlot, the node) only to the entry
+ * that declared the slot, and a keyed slot is declared once. So the component of dsh's entry is
+ * swapped for a wrapper that calls the original, and swapped back on dispose. dsh re-registers its
+ * entries (a reload, a locale change), so the slot is watched and every new entry is wrapped too.
+ *
+ * Only dsh's entries are touched: an entry another plugin registered carries an `id`.
+ */
+function wrapNativeEntries(ctx, o) {
+    const OURS = Symbol.for(`dsh-conversation-enhancer/${o.tag}`);
+    const patched = new Map(); // entry -> its original component
+    const restore = () => {
+        for (const [entry, original] of patched)
+            if (entry.component && entry.component[OURS])
+                entry.component = original;
+        patched.clear();
+        if (o.onSync)
+            o.onSync(0);
+    };
+    const sync = () => {
+        const live = new Set();
+        for (const entry of ctx.slots.entries(o.slot)) {
+            if ((entry.options && entry.options.id) || !entry.component)
+                continue;
+            const make = o.wrap(entry);
+            if (!make)
+                continue;
+            live.add(entry);
+            if (entry.component[OURS])
+                continue;
+            const original = entry.component;
+            const wrapped = make(original);
+            wrapped[OURS] = true;
+            entry.component = wrapped;
+            patched.set(entry, original);
+        }
+        // an entry dsh dropped is gone with its component: nothing to put back
+        for (const entry of [...patched.keys()])
+            if (!live.has(entry))
+                patched.delete(entry);
+        if (o.onSync)
+            o.onSync(patched.size);
+    };
+    let timer;
+    ctx.effect(() => {
+        const unsub = ctx.slots.subscribe(o.slot, () => { clearTimeout(timer); timer = setTimeout(sync, 0); });
+        sync();
+        return () => { clearTimeout(timer); unsub(); restore(); };
+    }, o.label);
 }
 
 // ===== src/styles/00-shared.scss
@@ -2000,6 +2046,34 @@ part({
         const OPEN = ':is([data-dcd-group-member]:not([data-dcd-group-hide]),.dcd-flow-card > [data-chat-flow-key])';
         const CHEV_MASK = V.CHEV_MASK;
         const CHEVRON = V.CHEV_SVG;
+        const setAttr = V.setAttr;
+        const setFlag = V.setFlag;
+        const zh = V.zh;
+        const setText = (el, s) => { if (el.textContent !== s)
+            el.textContent = s; };
+        /** Keep `attr` on exactly the elements in `want`. */
+        const syncMarks = (attr, want) => {
+            for (const el of document.querySelectorAll(`[${attr}]`))
+                if (!want.has(el))
+                    el.removeAttribute(attr);
+            for (const el of want)
+                if (!el.hasAttribute(attr))
+                    el.setAttribute(attr, '');
+        };
+        /** Take each attribute off every element that carries it. */
+        const unmark = (...attrs) => {
+            for (const a of attrs)
+                document.querySelectorAll(`[${a}]`).forEach((m) => m.removeAttribute(a));
+        };
+        /** What a group writes on each of its member rows. */
+        const MEMBER_ATTRS = ['data-dcd-group-member', 'data-dcd-group-head', 'data-dcd-group-first', 'data-dcd-group-last', 'data-dcd-group-hide', 'data-dcd-group-closing'];
+        const clearMember = (m) => {
+            for (const a of MEMBER_ATTRS)
+                m.removeAttribute(a);
+            const n0 = m.querySelector(NODE);
+            if (n0)
+                n0.removeAttribute('data-dcd-group-closing');
+        };
         /* Kind of a call: dsh's data-tool / data-variant first, the row title (any locale) as fallback.
            The kind table itself is display-shared's (kit.vocab.TOOL_KIND), so both modes agree. */
         const KINDS = [
@@ -2086,36 +2160,37 @@ part({
                 return;
             setAttr(t.el, 'data-dcd-group-title', toolWordOf(item));
         }
-        // conversation-flow (08) renders the rows itself, so the grouping pass never reaches them; rename
-        // never-ran calls here too or their row title stays dsh's raw error string
-        /* One picture, one row: the tile for a row comes from the path the row itself prints (it is in
-           the row's own text), so no node lookup is needed here — the flow part owns the node, this part
-           owns the DOM. kit.picUrl (written by the flow part) turns that path into a file URL, expanding
-           `~` and resolving a relative path against the run's cwd. */
+        /* One picture, one row. The flow part owns the nodes and this part the DOM, so a row asks the
+           flow (kit.picForCall / picForRow / picForText, by its call id, its key, its words) for the
+           picture its own call looked at; only a row that read an image falls back to the path it prints,
+           which kit.picUrl turns into a file URL (`~` expanded, a relative path against the run's cwd). */
         const IMGP = /(?:~\/|\/|[A-Za-z]:\\)[^\s"'`<>|$*?%{}\u2026]*?\.(?:png|jpe?g|gif|webp|svg|bmp|avif)(?![A-Za-z0-9])/i;
+        /** One of the flow's lookups, as a URL or ''; a lookup that is missing or throws says nothing. */
+        const ask = (fn, arg) => {
+            if (typeof fn !== 'function' || !arg)
+                return '';
+            try {
+                return fn(arg) || '';
+            }
+            catch (e) {
+                return '';
+            }
+        };
+        /** A file URL without its version: the same file, whichever call it was shown for. */
+        const fileOf = (u) => String(u || '').replace(/[?&]v=[^&]*/g, '');
         const rowPicUrl = (row) => {
             // the picture its own call named, by the key dsh puts on the row: a bash row's text is the
             // description it was given (「Upscale screenshot regions」), not the file it read or wrote
             // the call id is printed on the row itself; the flow key lives on an item above it and moves
             // when dsh re-nests the line, so ask by the id first
             const byCall = kit.picForCall;
-            const callId = row.getAttribute('data-chat-call-id');
-            if (typeof byCall === 'function' && callId) {
-                let url = '';
-                try {
-                    url = byCall(callId) || '';
-                }
-                catch (e) {
-                    url = '';
-                }
-                if (url)
-                    return url;
-            }
+            const byId = ask(byCall, row.getAttribute('data-chat-call-id'));
+            if (byId)
+                return byId;
             // a call a PTC program made sits inside the program's row: the node / flow key above it is the
             // PROGRAM's, so asking by it handed every inner call the program's picture. Such a row is
             // matched only by what is its own (its id, its words, a path it prints).
             const nested = !!row.closest('[data-subcalls]');
-            const byRow = nested ? null : kit.picForRow;
             // dsh marks the node it rendered with `data-chat-node-key` (its own key) and the *position* it
             // occupies with `data-chat-flow-key` (a group key when the line sits inside a collapsed group,
             // or a JSON pair when it belongs to a group part). The picture map is keyed by the node key, so
@@ -2124,36 +2199,19 @@ part({
                 const held = (row.hasAttribute(sel) ? row : row.closest(`[${sel}]`));
                 return held ? held.getAttribute(sel) : '';
             };
-            const flowKey = pick('data-chat-node-key') || pick('data-chat-flow-key');
-            if (typeof byRow === 'function' && flowKey) {
-                let url = '';
-                try {
-                    url = byRow(flowKey) || '';
-                }
-                catch (e) {
-                    url = '';
-                }
-                if (url)
-                    return url;
-            }
+            const byRow = nested ? null : kit.picForRow;
+            const byKey = ask(byRow, pick('data-chat-node-key') || pick('data-chat-flow-key'));
+            if (byKey)
+                return byKey;
             // last resort: the row says what it did ("Simplify the call-id test", "读取 dsh-claude-shared/build.mjs"),
             // and conversation-flow indexed its pictures by exactly that line — the one key that does not move
             // the words index is built from the PROGRAM's rows too: an inner call that reads like its
             // program (「Screenshot regenerated repro」 twice) would inherit its picture through it
             const byText = nested ? null : kit.picForText;
             if (typeof byText === 'function') {
-                const title = titleOf(row);
                 const summary = (row.querySelector('[class*="_summary"]') || {}).textContent || '';
-                for (const t of [title, summary]) {
-                    if (!String(t || '').trim())
-                        continue;
-                    let url = '';
-                    try {
-                        url = byText(String(t)) || '';
-                    }
-                    catch (e) {
-                        url = '';
-                    }
+                for (const t of [titleOf(row), summary]) {
+                    const url = String(t || '').trim() ? ask(byText, String(t)) : '';
                     if (url)
                         return url;
                 }
@@ -2164,33 +2222,16 @@ part({
                 || /^(读取图片|read image|画像を読み取り)$/i.test(titleOf(row));
             if (!readsImage)
                 return '';
-            const url = kit.picUrl;
-            if (typeof url !== 'function')
-                return '';
             const m = String(row.textContent || '').match(IMGP);
             // a glob or a fragment is not a picture: `ls src/parts/*.png` is a command, not a file
             if (!m || /[*?%]/.test(m[0]) || m[0].split('/').length < 3)
                 return '';
-            let found = '';
-            try {
-                found = url(m[0]) || '';
-            }
-            catch (e) {
-                found = '';
-            }
+            const found = ask(kit.picUrl, m[0]);
             // an inner call that names a file its program also produced: show the program's copy of it, which
             // is versioned by that call (the path alone shows whatever the file holds now, i.e. the last run's)
-            if (found && nested && typeof byCall === 'function') {
+            if (found && nested) {
                 const prog = row.parentElement && row.parentElement.closest('[data-chat-call-id]');
-                const progId = prog && prog.getAttribute('data-chat-call-id');
-                let own = '';
-                try {
-                    own = progId ? byCall(progId) || '' : '';
-                }
-                catch (e) {
-                    own = '';
-                }
-                const fileOf = (u) => u.replace(/[?&]v=[^&]*/g, '');
+                const own = ask(byCall, prog && prog.getAttribute('data-chat-call-id'));
                 if (own && fileOf(own) === fileOf(found))
                     return own;
             }
@@ -2302,7 +2343,6 @@ part({
             // a PTC program whose inner call shows this picture: the picture belongs on that call's row
             // (the one that made or read it), not twice, once on the program as well
             // (compared by file: the program's URL carries its own call as the version, the inner row's not)
-            const fileOf = (u) => String(u || '').replace(/[?&]v=[^&]*/g, '');
             const inner = row.closest('[data-subcalls]') ? [] : Array.from(row.querySelectorAll('[data-subcalls] [data-dcd-group-pic-src]'));
             if (inner.some((e) => fileOf(e.getAttribute('data-dcd-group-pic-src')) === fileOf(want))) {
                 clearRowPic(host);
@@ -2466,11 +2506,6 @@ part({
             });
             return b;
         }
-        const setText = (el, s) => { if (el.textContent !== s)
-            el.textContent = s; };
-        const setAttr = V.setAttr;
-        const setFlag = V.setFlag;
-        const zh = V.zh;
         /* ---- images (read_image) ---- */
         const isImageCall = (item) => !!item.querySelector('[data-tool="read_image"],[data-tool="view_image"]');
         // per read_image call: how many times we opened it so its image mounts, or 'user' once the user took over.
@@ -2715,11 +2750,7 @@ part({
             for (const m of document.querySelectorAll('[data-dcd-group-member]')) {
                 if (keep.has(m))
                     continue;
-                for (const a of ['data-dcd-group-member', 'data-dcd-group-head', 'data-dcd-group-first', 'data-dcd-group-last', 'data-dcd-group-hide', 'data-dcd-group-closing'])
-                    m.removeAttribute(a);
-                const n0 = m.querySelector(NODE);
-                if (n0)
-                    n0.removeAttribute('data-dcd-group-closing');
+                clearMember(m);
                 const b = m.querySelector(':scope > .dcd-group-head');
                 if (b) {
                     cancelClose(b);
@@ -2824,12 +2855,7 @@ part({
                         want.add(program);
                 }
             }
-            for (const el of document.querySelectorAll('[data-dcd-wrap]'))
-                if (!want.has(el))
-                    el.removeAttribute('data-dcd-wrap');
-            for (const el of want)
-                if (!el.hasAttribute('data-dcd-wrap'))
-                    el.setAttribute('data-dcd-wrap', '');
+            syncMarks('data-dcd-wrap', want);
         }
         function markEcho() {
             const marked = new Set();
@@ -2849,12 +2875,7 @@ part({
                         marked.add(out.el);
                 }
             }
-            for (const el of document.querySelectorAll('[data-dcd-echo]'))
-                if (!marked.has(el))
-                    el.removeAttribute('data-dcd-echo');
-            for (const el of marked)
-                if (!el.hasAttribute('data-dcd-echo'))
-                    el.setAttribute('data-dcd-echo', '');
+            syncMarks('data-dcd-echo', marked);
         }
         /* the caption under an opened picture: dsh prints the file's absolute path as plain text there. It
            becomes a link that does what the row's own file link does (opens dsh's file preview). */
@@ -2966,7 +2987,7 @@ part({
                 document.removeEventListener('click', onRowClick, true);
                 document.removeEventListener('click', openPicPath, true);
                 document.removeEventListener('keydown', openPicPath, true);
-                document.querySelectorAll('[data-dcd-pic-path]').forEach((m) => { for (const a of ['data-dcd-pic-path', 'role', 'tabindex', 'title'])
+                document.querySelectorAll('[data-dcd-pic-path]').forEach((m) => { for (const a of ['role', 'tabindex', 'title'])
                     m.removeAttribute(a); });
                 for (const t of pendingClose.values())
                     clearTimeout(t);
@@ -2974,25 +2995,13 @@ part({
                 manual.clear();
                 firstSeen.clear();
                 autoOpened.clear();
-                document.querySelectorAll('[data-dcd-group-imgauto]').forEach((m) => m.removeAttribute('data-dcd-group-imgauto'));
                 if (timer)
                     clearTimeout(timer);
                 sheet.remove();
-                document.querySelectorAll('[data-dcd-group-plan]').forEach((m) => m.removeAttribute('data-dcd-group-plan'));
-                document.querySelectorAll('[data-dcd-group-done]').forEach((m) => m.removeAttribute('data-dcd-group-done'));
-                document.querySelectorAll('[data-dcd-lead]').forEach((m) => m.removeAttribute('data-dcd-lead'));
-                document.querySelectorAll('[data-dcd-echo]').forEach((m) => m.removeAttribute('data-dcd-echo'));
-                document.querySelectorAll('[data-dcd-wrap]').forEach((m) => m.removeAttribute('data-dcd-wrap'));
-                document.querySelectorAll('[data-dcd-group-title]').forEach((m) => m.removeAttribute('data-dcd-group-title'));
+                document.querySelectorAll('[data-dcd-group-member]').forEach(clearMember);
+                unmark('data-dcd-pic-path', 'data-dcd-group-imgauto', 'data-dcd-group-plan', 'data-dcd-group-done', 'data-dcd-lead', 'data-dcd-echo', 'data-dcd-wrap', 'data-dcd-group-title');
                 document.querySelectorAll('.dcd-group-head').forEach((b) => b.remove());
                 document.querySelectorAll('.dcd-group-now').forEach((b) => b.remove());
-                document.querySelectorAll('[data-dcd-group-member]').forEach((m) => {
-                    for (const a of ['data-dcd-group-member', 'data-dcd-group-head', 'data-dcd-group-first', 'data-dcd-group-last', 'data-dcd-group-hide', 'data-dcd-group-closing'])
-                        m.removeAttribute(a);
-                    const n0 = m.querySelector(NODE);
-                    if (n0)
-                        n0.removeAttribute('data-dcd-group-closing');
-                });
                 // undo what hideContextRows / fixCommandInput did with inline styles and foreign nodes
                 document.querySelectorAll('[data-dcd-group-gone]').forEach((b) => {
                     b.removeAttribute('data-dcd-group-gone');
@@ -3000,14 +3009,11 @@ part({
                     if (row)
                         row.style.display = '';
                 });
-                document.querySelectorAll('[data-dcd-group-fb-src]').forEach((m) => m.removeAttribute('data-dcd-group-fb-src'));
+                unmark('data-dcd-group-fb-src');
                 document.querySelectorAll('[data-dcd-group-fb]').forEach((m) => m.remove());
                 closePeek();
                 document.querySelectorAll('.dcd-group-rowthumb').forEach((m) => m.remove());
-                document.querySelectorAll('[data-dcd-group-pic]').forEach((m) => {
-                    m.removeAttribute('data-dcd-group-pic');
-                    m.removeAttribute('data-dcd-group-pic-src');
-                });
+                unmark('data-dcd-group-pic', 'data-dcd-group-pic-src');
                 picState.clear();
             };
         }
@@ -3675,8 +3681,6 @@ part({
  *   - consecutive tool calls fold into one quiet line, 「命令 ×3 · 失败 ×1 ›」, that opens
  *     to one bordered card with a row per call (open by default in 详尽). In 标准 the hidden
  *     thinking does not split a run.
- *   - consecutive tool calls fold into one quiet line, 「命令 ×3 · 失败 ×1 ›」, that opens
- *     to one bordered card with a row per call (open by default in 详尽).
  * A running turn reads as three stacked lines, and each answers one question:
  *   - the counts (「思考 ×6 · 工具 ×8 ›」) — what has happened so far;
  *   - the live line under the group it belongs to — what is happening now: the call in flight with
@@ -4070,17 +4074,10 @@ part({
         }
         /** FNV-1a's multiplier over a mixed number (avalanche enough for one equality test). */
         const mix = (h, v) => Math.imul(h ^ (v | 0), 16777619);
-        /**
-         * What one row contributes, kept per node object together with the handful of objects and
-         * numbers it was computed from. A settled row keeps its `data`, its turn and its end object
-         * across notifications (dsh hands out a new node only when something in it changed), so the
-         * whole scan collapses to a few identity compares plus one mix: that is what made a pass over a
-         * 17k-node transcript cheap enough to run on every token.
-         *
-         * `b0` is the length of the row's first text block: the one field that can change inside an
-         * otherwise identical `data` while a thought is being written, and the only reason the fast path
-         * is safe.
-         */
+        /* Per entry / per node: what its share of the signature was computed from (see nodeContrib).
+           `b0` is the length of the row's first text block: the one field that can change inside an
+           otherwise identical `data` while a thought is being written, and the only reason the fast path
+           is safe. */
         const SIG_ENTRY = new WeakMap();
         const SIG_NODE = new WeakMap();
         /** The length of a call's text output, without building the string `outText` would. */
@@ -4101,7 +4098,8 @@ part({
          * What one row contributes to the transcript's shape, cached per node object together with the
          * handful of objects and numbers it was computed from (`SIG_NODE` above). A settled row keeps its
          * `data`, its turn and its end object across notifications — dsh hands out a new node only when
-         * something in it changed — so the whole scan collapses to a few identity compares plus one mix.
+         * something in it changed — so the whole scan collapses to a few identity compares plus one mix:
+         * that is what made a pass over a 17k-node transcript cheap enough to run on every token.
          *
          * The same number feeds a turn's own signature (see `layout`), which is what lets a turn the
          * reader is not looking at skip its re-render.
@@ -4678,42 +4676,25 @@ part({
         return {
             inject: ['slots'],
             apply(ctx) {
-                // dsh hands renderSlot (how nodes get drawn) only to the entry that declared the node slot,
-                // and that slot cannot be declared twice. So instead of registering a rival entry, wrap the
-                // component of dsh's own entry in place, and put it back on dispose. dsh's entry registers
-                // after us and is re-registered on reload, so follow it.
-                const OURS = Symbol.for('dsh-conversation-enhancer/conversation-flow');
-                let patched; // { entry, original }
-                const restore = () => {
-                    if (patched && patched.entry.component && patched.entry.component[OURS])
-                        patched.entry.component = patched.original;
-                    patched = undefined;
-                    document.documentElement.removeAttribute('data-dcf');
-                    sheet.remove();
-                };
-                const sync = () => {
-                    const native = ctx.slots.entries(SLOT).find((e) => !(e.options && e.options.id) && e.children);
-                    if (!native) {
-                        restore();
-                        return;
-                    }
-                    if (patched && patched.entry === native && native.component && native.component[OURS])
-                        return;
-                    restore();
-                    const original = native.component;
-                    const Flow = makeFlow(original);
-                    Flow[OURS] = true;
-                    native.component = Flow;
-                    patched = { entry: native, original };
-                    sheet.ensure();
-                    document.documentElement.setAttribute('data-dcf', '');
-                };
-                let timer;
-                ctx.effect(() => {
-                    const unsub = ctx.slots.subscribe(SLOT, () => { clearTimeout(timer); timer = setTimeout(sync, 0); });
-                    sync();
-                    return () => { clearTimeout(timer); unsub(); restore(); };
-                }, 'conversation-flow: wrap the native flow');
+                // dsh hands renderSlot (how nodes get drawn) only to the entry that declared the node slot —
+                // the one with children — and that slot cannot be declared twice: so its component is wrapped
+                // in place (lib/slot-wrap). `data-dcf` tells the other parts and the styles the flow is on.
+                wrapNativeEntries(ctx, {
+                    slot: SLOT,
+                    tag: 'conversation-flow',
+                    label: 'conversation-flow: wrap the native flow',
+                    wrap: (entry) => (entry.children ? makeFlow : null),
+                    onSync(n) {
+                        if (n) {
+                            sheet.ensure();
+                            document.documentElement.setAttribute('data-dcf', '');
+                        }
+                        else {
+                            document.documentElement.removeAttribute('data-dcf');
+                            sheet.remove();
+                        }
+                    },
+                });
             },
         };
     },
@@ -4926,8 +4907,8 @@ part({
  * (the HTTP status, type, code, request id …) go on one quiet line under it, key and value. A body
  * with no message is shown as indented JSON. A text that is not JSON is left as it is.
  *
- * Nothing of dsh's is redrawn. Like conversation-flow, it wraps the component of dsh's own keyed
- * entries (`conversation.chat.node` · turn-error / model-retry) in place: the node it hands on
+ * Nothing of dsh's is redrawn. It wraps the component of dsh's own keyed entries in place
+ * (lib/slot-wrap; `conversation.chat.node` · turn-error / model-retry): the node it hands on
  * carries the message, and the fields are drawn under the row (turn-error) or follow the message
  * (retry, whose details are dsh's own). The `t` handed to the retry says its delay in seconds.
  */
@@ -4935,8 +4916,7 @@ part({
     id: 'dsh-error-notes',
     factory(require, kit) {
         const { React, h } = kit;
-        const zh = () => /^zh/i.test(document.documentElement.lang || navigator.language || 'zh');
-        const seconds = (s) => (zh() ? `${s} 秒` : `${s}s`);
+        const seconds = (s) => (kit.vocab.zh() ? `${s} 秒` : `${s}s`);
         // codes dsh already turns into its own sentence (MessageItem's failureMessage): its words win
         const NATIVE_CODES = new Set(['ACCOUNT_SIGNED_OUT', 'INTERRUPTED', 'ACCOUNT_SIGN_IN_REQUIRED', 'QUOTA', 'ACCOUNT_QUOTA', 'AUTH']);
         const scalar = (v) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
@@ -4986,8 +4966,6 @@ part({
             return { message, fields, json: message ? null : body };
         }
         /* ---------- wrap dsh's own renderers ---------- */
-        const SLOT = 'conversation.chat.node';
-        const OURS = Symbol.for('dsh-conversation-enhancer/error-notes');
         const sheet = kit.sheet('error-notes', CSS_ERROR_NOTES);
         /** Under the row: the body's other fields, or — a body with no message — the body itself. */
         function Fields({ f }) {
@@ -5022,47 +5000,17 @@ part({
                 return h(Native, { ...props, node, t });
             };
         }
+        const WRAP = { 'turn-error': wrapTurnError, 'model-retry': wrapRetry };
         return {
             inject: ['slots'],
             apply(ctx) {
-                const WRAP = { 'turn-error': wrapTurnError, 'model-retry': wrapRetry };
-                const patched = new Map(); // entry -> original component
-                const restore = () => {
-                    for (const [entry, original] of patched)
-                        if (entry.component && entry.component[OURS])
-                            entry.component = original;
-                    patched.clear();
-                    sheet.remove();
-                };
-                const sync = () => {
-                    const live = new Set();
-                    for (const entry of ctx.slots.entries(SLOT)) {
-                        const key = entry.options && entry.options.key;
-                        const wrap = WRAP[key];
-                        // dsh's own entry only (ours carry an id)
-                        if (!wrap || (entry.options && entry.options.id) || !entry.component)
-                            continue;
-                        live.add(entry);
-                        if (entry.component[OURS])
-                            continue;
-                        const original = entry.component;
-                        const Wrapped = wrap(original);
-                        Wrapped[OURS] = true;
-                        entry.component = Wrapped;
-                        patched.set(entry, original);
-                    }
-                    for (const entry of [...patched.keys()])
-                        if (!live.has(entry))
-                            patched.delete(entry);
-                    if (patched.size)
-                        sheet.ensure();
-                };
-                let timer;
-                ctx.effect(() => {
-                    const unsub = ctx.slots.subscribe(SLOT, () => { clearTimeout(timer); timer = setTimeout(sync, 0); });
-                    sync();
-                    return () => { clearTimeout(timer); unsub(); restore(); };
-                }, 'error-notes: lay out failed requests');
+                wrapNativeEntries(ctx, {
+                    slot: 'conversation.chat.node',
+                    tag: 'error-notes',
+                    label: 'error-notes: lay out failed requests',
+                    wrap: (entry) => WRAP[entry.options && entry.options.key] || null,
+                    onSync: (n) => (n ? sheet.ensure() : sheet.remove()),
+                });
             },
         };
     },
@@ -5082,17 +5030,15 @@ part({
  *
  * So for exactly those calls (settled, not failed, every recorded path absolute), the row is handed
  * the call without its parent link, and dsh draws what it draws for any other edit: its diff when
- * opened and its own +N -M after the size. Like error-notes, this wraps the component of dsh's own
- * keyed entries (`tool.call.toolview` · edit / write / apply_patch) in place and puts it back on
+ * opened and its own +N -M after the size. It wraps the component of dsh's own keyed entries in
+ * place (lib/slot-wrap; `tool.call.toolview` · edit / write / apply_patch) and puts it back on
  * dispose; nothing of dsh's is redrawn.
  */
 part({
     id: 'dsh-ptc-diffs',
     factory(require, kit) {
         const { h } = kit;
-        const SLOT = 'tool.call.toolview';
         const KEYS = new Set(['edit', 'write', 'apply_patch']);
-        const OURS = Symbol.for('dsh-conversation-enhancer/ptc-diffs');
         const absolute = (p) => typeof p === 'string' && (p.startsWith('/') || /^[A-Za-z]:[\\/]/.test(p));
         /** A program's settled edit whose result says where it wrote, absolutely: safe to draw as any edit. */
         function trusted(block) {
@@ -5124,39 +5070,12 @@ part({
         return {
             inject: ['slots'],
             apply(ctx) {
-                const patched = new Map(); // entry -> original component
-                const restore = () => {
-                    for (const [entry, original] of patched)
-                        if (entry.component && entry.component[OURS])
-                            entry.component = original;
-                    patched.clear();
-                };
-                const sync = () => {
-                    const live = new Set();
-                    for (const entry of ctx.slots.entries(SLOT)) {
-                        const key = entry.options && entry.options.key;
-                        // dsh's own entries only (ours carry an id)
-                        if (!KEYS.has(key) || (entry.options && entry.options.id) || !entry.component)
-                            continue;
-                        live.add(entry);
-                        if (entry.component[OURS])
-                            continue;
-                        const original = entry.component;
-                        const Wrapped = wrap(original);
-                        Wrapped[OURS] = true;
-                        entry.component = Wrapped;
-                        patched.set(entry, original);
-                    }
-                    for (const entry of [...patched.keys()])
-                        if (!live.has(entry))
-                            patched.delete(entry);
-                };
-                let timer;
-                ctx.effect(() => {
-                    const unsub = ctx.slots.subscribe(SLOT, () => { clearTimeout(timer); timer = setTimeout(sync, 0); });
-                    sync();
-                    return () => { clearTimeout(timer); unsub(); restore(); };
-                }, 'ptc-diffs: draw a program\'s edits with their diff');
+                wrapNativeEntries(ctx, {
+                    slot: 'tool.call.toolview',
+                    tag: 'ptc-diffs',
+                    label: 'ptc-diffs: draw a program\'s edits with their diff',
+                    wrap: (entry) => (KEYS.has(entry.options && entry.options.key) ? wrap : null),
+                });
             },
         };
     },
