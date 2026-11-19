@@ -79,6 +79,8 @@ interface Kit {
   picForRow?: (flowKey: string) => string
   /** the same, by the call id dsh prints on the row (`data-chat-call-id`). */
   picForCall?: (callId: string) => string
+  /** A PTC program by its row's call id: how many calls it made, and whether it only wraps one (conversation-flow). */
+  programOf?: (callId: string) => { subCalls: number; thin: boolean } | null
   picForText?: (text: string) => string
 }
 

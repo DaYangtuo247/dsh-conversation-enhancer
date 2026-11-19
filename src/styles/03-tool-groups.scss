@@ -8,6 +8,8 @@
  * conversation-flow card rules (08 draws the rows, these dress them). The selectors the part queries
  * the DOM with are passed in at runtime as placeholders, so CSS and queries can never drift.
  */
+/* a program's own call, under its row: a tree corner */
+$sub-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2012%2012'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'1.2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M3%201.5v4.25A2.25%202.25%200%200%200%205.25%208H10.5'%2F%3E%3C%2Fsvg%3E");
 /* 查看 icon: open-in-panel arrow */
 $expand-tg: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2016%2016'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'1.5'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M9.5%202.75h3.75V6.5M13.25%202.75%208%208M6.5%203.25H4.25a1.5%201.5%200%200%200-1.5%201.5v7a1.5%201.5%200%200%200%201.5%201.5h7a1.5%201.5%200%200%200%201.5-1.5V9.5'%2F%3E%3C%2Fsvg%3E");
 $row: '__DCG_ROW__';
@@ -237,20 +239,62 @@ html[lang^="en"] #{$open} #{$row}[data-state="error"]::before{content:"Failed"}
 /* PTC (run_code). dsh draws the calls a program made as a tree under the program's row (_subCalls: left
    hairline, margin-left 22px, padding-left 8px), and the row rules above are descendant selectors, so
    they also reached those inner rows and stacked their own 24px on the indent. The tree is kept as ONE
-   step: no margin (it left a strip of the card showing beside a hovered row), the hairline is drawn at
-   the parent text's 24px as a background, and the inner row text sits 16px past it. */
-#{$open} [class*="_subCalls"]{margin:0!important;padding:0!important;gap:0!important;border-left:0!important;
-  background:linear-gradient(var(--dsw-alias-border-l1,rgba(0,0,0,.12)),var(--dsw-alias-border-l1,rgba(0,0,0,.12))) 24px 0/1px 100% no-repeat}
-#{$open} [class*="_subCalls"] #{$row}{padding:8px 16px 8px 40px!important;min-height:36px!important}
+   step: no margin (it left a strip of the card showing beside a hovered row), no hairline (it read as a
+   stray line beside each call, and the call's own band covered it, so it showed only beside the head),
+   and the inner row says it is a call of the row above with a small tree corner at the parent's text
+   column (24px), its own text just past it. The corner is drawn on the row's _leading slot, which the
+   rows above hide: ::before already carries the 「失败」 tag. */
+#{$open} [class*="_subCalls"]{margin:0!important;padding:0!important;gap:0!important;border-left:0!important;background:none!important}
+#{$open} [class*="_subCalls"] #{$row}{position:relative;padding:8px 24px 8px 42px!important;min-height:36px!important}
+#{$open} [class*="_subCalls"] #{$row} [class*="_leading"]{display:block!important;position:absolute!important;left:24px;top:50%;width:12px;height:12px;margin:-7px 0 0!important;padding:0!important;
+  background:var(--dsw-alias-label-tertiary);-webkit-mask:$sub-mask center/12px no-repeat;mask:$sub-mask center/12px no-repeat}
+#{$open} [class*="_subCalls"] #{$row} [class*="_leading"] > *{display:none!important}
 #{$open} [class*="_subCalls"] > *{min-width:0}
-/* the program's own source: the same flat band as a command or its output. dsh draws it as a rounded, inset
-   slab (_codeBody, margin 4px 0 4px 4px) around a markdown code block (rounded, sticky banner, shiki pre).
-   Which wrappers sit in between differs between dsh builds and themes, so no layer is named: every container
-   inside is flattened (no fill, no radius, no margin, no side padding), and only the two things that hold
-   text — the banner with the language label, and the pre — get one 16px inset, the same as 输出 below. */
-#{$open} [class*="_codeBody"]{margin:0!important;border:0!important;border-top:1px solid var(--dsw-alias-border-l1)!important;
-  border-radius:0!important;box-shadow:none!important;background:var(--dcd-band)!important}
+/* the program's own source, in the same flat band as a command and its output. The band is already
+   painted by its scroller (_bodyScroll is a _bodyWrap child, see above); dsh's code block inside it
+   (_codeBody: rounded, inset, its own fill) is flattened to nothing, or it laid a second fill and a
+   second hairline on the band — the source read darker than the output under it. Every container
+   inside is flattened too (which wrappers sit in between differs between dsh builds). Only the two
+   that hold text are inset, on the band's 16px like a command's header and output: the language line
+   (_header_, with wrap / copy on its right) and the pre. */
+#{$open} [class*="_codeBody"]{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
 #{$open} [class*="_codeBody"] :is(div,header,section,pre){background:transparent!important;border-radius:0!important;box-shadow:none!important;border-color:transparent!important}
 #{$open} [class*="_codeBody"] :is(div,header,section){margin:0!important;padding-inline:0!important;position:static!important}
-#{$open} [class*="_codeBody"] [class*="_banner_"]{padding:8px 16px 0!important}
-#{$open} [class*="_codeBody"] pre{margin:0!important;padding:4px 16px 12px!important}
+#{$open} [class*="_codeBody"] [class*="_header_"]{min-height:0!important;padding:6px 10px 0 16px!important}
+#{$open} [class*="_codeBody"] pre{margin:0!important;padding:2px 16px 12px!important}
+/* a program usually opens with a newline (the fence's first line): fold that empty first line away
+   instead of leaving a blank line under the language label. tool-groups marks such a block
+   (data-dcd-lead) from its text, so the plain first paint and the highlighted one fold alike — a rule
+   on the highlighted lines alone made the source jump up a line the moment the colours came in. */
+#{$open} [class*="_codeBody"][data-dcd-lead] pre > code{display:block;margin-top:-1lh}
+/* dsh paints the source plain on mount and swaps in the highlighted copy a frame later (it waits for an
+   IntersectionObserver), so every opening flashed from one colour to many. The plain copy keeps its
+   place unseen and the highlighted one fades in; should highlighting never come (a language the
+   highlighter lacks), the plain copy shows after 300 ms. */
+#{$open} [class*="_codeBody"] pre[class*="_plain_"]{visibility:hidden;animation:dcd-plain-show 0s .3s forwards}
+#{$open} [class*="_codeBody"] pre.shiki{animation:dcd-code-in .14s ease-out}
+@keyframes dcd-plain-show{to{visibility:visible}}
+@keyframes dcd-code-in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){#{$open} [class*="_codeBody"] pre.shiki{animation:none}}
+html[data-dcd-anim="off"] #{$open} [class*="_codeBody"] pre.shiki{animation:none}
+/* a call's output that is the program's 输出 above, word for word (tool-groups marks it: data-dcd-echo):
+   one quiet 「同上」 line instead of the same text twice. In the 输入 / 输出 form it sits in the text
+   column beside the 输出 label; in the terminal form it takes the output's place under the command. */
+#{$open} [data-dcd-echo][class*="_ioSection"] > [class*="_ioText"]{display:none!important}
+#{$open} [data-dcd-echo][class*="_ioSection"]::after{content:"同上";color:var(--dsw-alias-label-tertiary)}
+#{$open} [data-dcd-echo][class*="_terminal"] > [class*="_output_"]{display:none!important}
+#{$open} [data-dcd-echo][class*="_terminal"]::after{content:"输出与上方相同";display:block;padding:2px 16px 12px;
+  font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+html[lang^="en"] #{$open} [data-dcd-echo][class*="_ioSection"]::after{content:"Same as above"}
+html[lang^="en"] #{$open} [data-dcd-echo][class*="_terminal"]::after{content:"Same output as above"}
+/* a program that only wraps one call (tool-groups marks it: data-dcd-wrap) IS that call: the program's
+   own row and body (the source with the command in it, the program's 输出) are left out, and the call's
+   row takes the program's place — a top-level row like any other, no tree corner, its own title (the
+   program had its own description for the same step), its own chevron, its own +N −M. */
+#{$open} [data-dcd-wrap] > [data-slot]{display:none!important}
+#{$open} [data-dcd-wrap] > [data-subcalls] #{$row}{padding:10px 24px!important;min-height:44px!important}
+#{$open} [data-dcd-wrap] > [data-subcalls] #{$row} [class*="_leading"]{display:none!important}
+/* every step of a PTC turn is a program, so the 「代码 ·」 in front of each said nothing: a program that
+   has a description reads like a command does — the description alone, in the summary's colour */
+#{$open} [data-tool="run_code"] > * > [data-disclosure-header] #{$row}:has([class*="_summary"]:not(:empty)) :is([class$="_title"],[class*="_title "],[class$="_sep"],[class*="_sep "]){display:none!important}
+#{$open} [data-tool="run_code"] > * > [data-disclosure-header] #{$row} [class*="_summary"]{color:var(--dsw-alias-label-secondary)!important}

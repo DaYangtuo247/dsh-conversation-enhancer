@@ -608,6 +608,82 @@ part({
       }
     }
 
+    /* a program's source (run_code) opening with a newline: mark its block so the stylesheet folds that
+       empty first line in the plain first paint and the highlighted one alike (styles: data-dcd-lead) */
+    function markLead() {
+      for (const cb of document.querySelectorAll('[class*="_codeBody"]')) {
+        const code = cb.querySelector('pre > code')
+        const lead = !!code && (code.textContent || '').startsWith('\n')
+        if (lead !== cb.hasAttribute('data-dcd-lead')) cb.toggleAttribute('data-dcd-lead', lead)
+      }
+    }
+
+    /* a program (run_code) that only prints what its call returned shows that text twice: as the program's
+       输出, and again in the opened call under it. Mark the call's copy (data-dcd-echo) when it is the same
+       text, and the stylesheet folds it to one 「同上」 line; the command stays (it has the program's
+       variables filled in) and dsh's 查看 still opens the whole output. Only a call whose program row is
+       open is compared — with the program closed there is no copy above it to point at. */
+    const OUT_LABEL = /^(输出|Output)$/i
+    // whitespace is left out of the comparison: the terminal form draws each output line as its own
+    // element, so its text has no newlines where the 输出 text has them
+    const norm = (t) => String(t || '').replace(/\s+/g, '')
+    const ELIDED = '[...]'
+    /** The same output? Word for word, or — when dsh cut the middle of a long one in both places, each
+        copy with its own limit — the same text up to the cut and nearly the same length. A call that
+        returned more than the program printed (a `.slice(0, n)`) is not a copy: it is left as it is. */
+    function sameOutput(a, b) {
+      if (!a || !b) return false
+      if (a === b) return true
+      if (!a.includes(ELIDED) || !b.includes(ELIDED)) return false
+      return a.split(ELIDED)[0] === b.split(ELIDED)[0] && Math.abs(a.length - b.length) <= 0.05 * Math.max(a.length, b.length)
+    }
+    function outputOf(body) {
+      if (!body) return null
+      const term = body.querySelector('[class*="_terminal"] > [class*="_output_"]')
+      if (term) return { el: body.querySelector('[class*="_terminal"]'), text: term.textContent }
+      const sec = [...body.querySelectorAll('[class*="_ioSection"]')].find((x) => OUT_LABEL.test((x.querySelector('[class*="_ioLabel"]')?.textContent || '').trim()))
+      const text = sec && sec.querySelector('[class*="_ioText"]')
+      return text ? { el: sec, text: text.textContent } : null
+    }
+    /* a program that only wraps one call (kit.programOf, from the flow model: one call in the source and
+       nothing else) is drawn as that call: its row opens the call instead of the source, the source,
+       the program's 输出 and the call's own row are left out (styles: data-dcd-wrap). Only once the
+       program has finished well — while it runs, or after it failed, its own body is what says why. */
+    function markWrap() {
+      const want = new Set<Element>()
+      if (typeof kit.programOf === 'function') {
+        for (const tree of document.querySelectorAll('[data-subcalls]')) {
+          const program = tree.parentElement as HTMLElement | null
+          if (!program || !program.matches('[data-chat-call-id]')) continue
+          const own = program.querySelector(':scope > [data-slot] [data-tool="run_code"]')
+          if (!own || own.getAttribute('data-state') !== 'ok') continue
+          if (tree.querySelectorAll(':scope > [data-chat-call-id]').length !== 1) continue
+          const info = kit.programOf(program.dataset.chatCallId)
+          if (info && info.thin) want.add(program)
+        }
+      }
+      for (const el of document.querySelectorAll('[data-dcd-wrap]')) if (!want.has(el)) el.removeAttribute('data-dcd-wrap')
+      for (const el of want) if (!el.hasAttribute('data-dcd-wrap')) el.setAttribute('data-dcd-wrap', '')
+    }
+    function markEcho() {
+      const marked = new Set<Element>()
+      for (const tree of document.querySelectorAll('[data-subcalls]')) {
+        const program = tree.parentElement
+        // a wrapper shows no 输出 of its own: there is nothing above for the call to repeat
+        if (program && program.hasAttribute('data-dcd-wrap')) continue
+        const mine = program && program.querySelector(':scope > [data-slot] [class*="_bodyWrap"]')
+        const above = outputOf(mine)
+        const want = above ? norm(above.text) : ''
+        if (!want) continue
+        for (const call of tree.querySelectorAll(':scope > [data-chat-call-id]')) {
+          const out = outputOf(call.querySelector('[class*="_bodyWrap"]'))
+          if (out && sameOutput(norm(out.text), want)) marked.add(out.el)
+        }
+      }
+      for (const el of document.querySelectorAll('[data-dcd-echo]')) if (!marked.has(el)) el.removeAttribute('data-dcd-echo')
+      for (const el of marked) if (!el.hasAttribute('data-dcd-echo')) el.setAttribute('data-dcd-echo', '')
+    }
+
     let timer = 0
     function schedule() {
       if (timer) return
@@ -621,6 +697,10 @@ part({
       // one shared, frame-coalesced observer; in conversation-flow mode only the running line is kept in
       // sync, otherwise the grouping pass runs only when a tool row / state actually changed
       const un = kit.dom.subscribe((recs) => {
+        // a block mounts with its row's body; the later swap to the highlighted copy keeps the same text
+        if (kit.dom.touches(recs, '[class*="_codeBody"]')) markLead()
+        // a program's calls: one opened or closed, or an output landing in one
+        if (kit.dom.touches(recs, '[data-subcalls]')) { markWrap(); markEcho() }
         if (flowActive()) {
           // context rows are already dropped by the flow's roleOf; this is the DOM safety net, so only
           // look when a record could be one (a full-document scan on every frame while a reply streams
@@ -650,6 +730,9 @@ part({
         for (const row of document.querySelectorAll('.dcd-flow-card [data-chat-call-id]')) markRowThumb(row)
       }, 600)
       schedule()
+      markLead()
+      markWrap()
+      markEcho()
       return () => {
         un(); unAttr(); clearInterval(tick); clearInterval(sweep)
         document.removeEventListener('click', onRowClick, true)
@@ -661,6 +744,9 @@ part({
         sheet.remove()
         document.querySelectorAll('[data-dcd-group-plan]').forEach((m) => m.removeAttribute('data-dcd-group-plan'))
         document.querySelectorAll('[data-dcd-group-done]').forEach((m) => m.removeAttribute('data-dcd-group-done'))
+        document.querySelectorAll('[data-dcd-lead]').forEach((m) => m.removeAttribute('data-dcd-lead'))
+        document.querySelectorAll('[data-dcd-echo]').forEach((m) => m.removeAttribute('data-dcd-echo'))
+        document.querySelectorAll('[data-dcd-wrap]').forEach((m) => m.removeAttribute('data-dcd-wrap'))
         document.querySelectorAll('[data-dcd-group-title]').forEach((m) => m.removeAttribute('data-dcd-group-title'))
         document.querySelectorAll('.dcd-group-head').forEach((b) => b.remove())
         document.querySelectorAll('.dcd-group-now').forEach((b) => b.remove())
