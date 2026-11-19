@@ -18,6 +18,7 @@ An enhancer for the conversation view of DeepSeek Harness (web and DSH NEXT): it
 | `user-markdown` | `src/parts/10-user-markdown.ts` | Renders the user's own message bubble with dsh's Markdown renderer |
 | `native-probe` | `src/parts/11-native-probe.ts` | Names, once per page load, the dsh internals the styles no longer find after an upgrade |
 | `error-notes` | `src/parts/12-error-notes.ts` | Lays out a failed model request's JSON body: its message as the sentence, the status / type / code on a quiet line under it |
+| `ptc-diffs` | `src/parts/13-ptc-diffs.ts` | Gives the edits a PTC program made dsh's own diff and +N -M, which dsh leaves out for any call with a parent |
 
 Part of a set of independent DeepSeek Harness UI bundles: [dsh-composer-display](https://github.com/DaYangtuo247/dsh-composer-display) (the input box and what sits on it), [dsh-conversation-enhancer](https://github.com/DaYangtuo247/dsh-conversation-enhancer) (the conversation view), [dsh-whale-theme](https://github.com/DaYangtuo247/dsh-whale-theme) (background, glass, fonts and its own Settings › 主题 page) and [dsh-context-monitor](https://github.com/DaYangtuo247/dsh-context-monitor) (context usage in the composer and in a 上下文透视 tab). Each one works on its own; they share one build script, vendored here as `scripts/`.
 
