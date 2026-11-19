@@ -718,6 +718,53 @@ part({
       const p = callId ? rowPicsById.get(String(callId)) : undefined
       return p ? mediaUrl(p.path, p.v) : ''
     }
+    /* A PTC program (run_code) that is only a wrapper round one call: the source makes that one call and
+       prints what came back, nothing else — no branch, no loop, no second call. Its card would say the
+       same thing three times (the source with the command in it, the program's 输出, then the call with
+       the command as it ran and the same output), so tool-groups draws it as that one call. It asks by
+       the call id dsh writes on the row; the nodes are the flow's own, the newest it rendered. */
+    let liveNodes = EMPTY_NODES
+    const programs = new Map() // call id -> run_code node
+    const LOGIC = /\b(?:if|else|for|while|do|switch|try|catch|function|return|await\s+Promise)\b|=>|\.(?:map|filter|forEach|reduce|some|every|find|then|join|split|replace|match)\s*\(/
+    const TOOL_CALL = /\btools\.\w+\s*\(/g
+    /** The source without what its words could be mistaken for: string literals (a description that says
+        「… for …」) and comments, each string left as an empty one. */
+    const bareCode = (code) => code
+      .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g, '""')
+      .replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '')
+    /** …and without its console.log(…) statements: what a wrapper prints is the call's result put into
+        lines (`a.lines.map(l => …).join(…)`), which the call's own view already shows. */
+    const stripPrints = (code) => {
+      let out = ''
+      let at = 0
+      const re = /\bconsole\.(?:log|info|error|warn)\s*\(/g
+      let m
+      while ((m = re.exec(code))) {
+        let i = m.index + m[0].length
+        let depth = 1
+        while (i < code.length && depth) { if (code[i] === '(') depth++; else if (code[i] === ')') depth--; i++ }
+        out += code.slice(at, m.index)
+        at = i
+        re.lastIndex = i
+      }
+      return out + code.slice(at)
+    }
+    kit.programOf = (callId) => {
+      const id = String(callId || '')
+      if (!id) return null
+      let node = programs.get(id)
+      if (!node || liveNodes.get(node.key) !== node) {
+        programs.clear()
+        for (const n of liveNodes.values()) if (n && toolName(n) === 'run_code') { const k = callIdOf(n); if (k) programs.set(k, n) }
+        node = programs.get(id)
+      }
+      if (!node) return null
+      const root = callOf(node)
+      const subs = Array.isArray(root.subCalls) ? root.subCalls.filter(Boolean) : []
+      const code = bareCode(String(argsOf(node).code || ''))
+      const calls = (code.match(TOOL_CALL) || []).length
+      return { subCalls: subs.length, thin: subs.length === 1 && calls === 1 && !LOGIC.test(stripPrints(code)) }
+    }
     kit.picForText = (text) => {
       const key = String(text || '').replace(/\s+/g, ' ').trim()
       if (!key) return ''
@@ -750,6 +797,7 @@ part({
         // the mutable Map, one stable reference; the fallback keeps a session switch (the store is
         // momentarily empty) from throwing inside the selector, which would blank the transcript
         const nodes = props.useChat((s) => s.nodes) || EMPTY_NODES
+        liveNodes = nodes
         // the live-timer and image caches die with the flow
         React.useEffect(() => () => { firstSeen.clear(); picCache.clear(); runPics.clear(); rowPics.clear(); rowPicsById.clear(); rowPicsByText.clear(); OPENED.clear() }, [])
         const quiet = useQuiet(props)
