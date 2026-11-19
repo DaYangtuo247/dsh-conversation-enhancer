@@ -35,6 +35,25 @@ part({
     const OPEN = ':is([data-dcd-group-member]:not([data-dcd-group-hide]),.dcd-flow-card > [data-chat-flow-key])'
     const CHEV_MASK = V.CHEV_MASK
     const CHEVRON = V.CHEV_SVG
+    const setAttr = V.setAttr
+    const setFlag = V.setFlag
+    const zh = V.zh
+    const setText = (el, s) => { if (el.textContent !== s) el.textContent = s }
+    /** Keep `attr` on exactly the elements in `want`. */
+    const syncMarks = (attr: string, want: Set<Element>) => {
+      for (const el of document.querySelectorAll(`[${attr}]`)) if (!want.has(el)) el.removeAttribute(attr)
+      for (const el of want) if (!el.hasAttribute(attr)) el.setAttribute(attr, '')
+    }
+    /** Take each attribute off every element that carries it. */
+    const unmark = (...attrs: string[]) => {
+      for (const a of attrs) document.querySelectorAll(`[${a}]`).forEach((m) => m.removeAttribute(a))
+    }
+    /** What a group writes on each of its member rows. */
+    const MEMBER_ATTRS = ['data-dcd-group-member', 'data-dcd-group-head', 'data-dcd-group-first', 'data-dcd-group-last', 'data-dcd-group-hide', 'data-dcd-group-closing']
+    const clearMember = (m: Element) => {
+      for (const a of MEMBER_ATTRS) m.removeAttribute(a)
+      const n0 = m.querySelector(NODE); if (n0) n0.removeAttribute('data-dcd-group-closing')
+    }
 
     /* Kind of a call: dsh's data-tool / data-variant first, the row title (any locale) as fallback.
        The kind table itself is display-shared's (kit.vocab.TOOL_KIND), so both modes agree. */
@@ -116,30 +135,30 @@ part({
       if (!PROMPT_ONLY.test(t.text) || item.querySelector('[class*="_summary"]')) return
       setAttr(t.el, 'data-dcd-group-title', toolWordOf(item))
     }
-    // conversation-flow (08) renders the rows itself, so the grouping pass never reaches them; rename
-    // never-ran calls here too or their row title stays dsh's raw error string
-    /* One picture, one row: the tile for a row comes from the path the row itself prints (it is in
-       the row's own text), so no node lookup is needed here — the flow part owns the node, this part
-       owns the DOM. kit.picUrl (written by the flow part) turns that path into a file URL, expanding
-       `~` and resolving a relative path against the run's cwd. */
+    /* One picture, one row. The flow part owns the nodes and this part the DOM, so a row asks the
+       flow (kit.picForCall / picForRow / picForText, by its call id, its key, its words) for the
+       picture its own call looked at; only a row that read an image falls back to the path it prints,
+       which kit.picUrl turns into a file URL (`~` expanded, a relative path against the run's cwd). */
     const IMGP = /(?:~\/|\/|[A-Za-z]:\\)[^\s"'`<>|$*?%{}\u2026]*?\.(?:png|jpe?g|gif|webp|svg|bmp|avif)(?![A-Za-z0-9])/i
+    /** One of the flow's lookups, as a URL or ''; a lookup that is missing or throws says nothing. */
+    const ask = (fn, arg) => {
+      if (typeof fn !== 'function' || !arg) return ''
+      try { return fn(arg) || '' } catch (e) { return '' }
+    }
+    /** A file URL without its version: the same file, whichever call it was shown for. */
+    const fileOf = (u: string | null) => String(u || '').replace(/[?&]v=[^&]*/g, '')
     const rowPicUrl = (row) => {
       // the picture its own call named, by the key dsh puts on the row: a bash row's text is the
       // description it was given (「Upscale screenshot regions」), not the file it read or wrote
       // the call id is printed on the row itself; the flow key lives on an item above it and moves
       // when dsh re-nests the line, so ask by the id first
       const byCall = kit.picForCall
-      const callId = row.getAttribute('data-chat-call-id')
-      if (typeof byCall === 'function' && callId) {
-        let url = ''
-        try { url = byCall(callId) || '' } catch (e) { url = '' }
-        if (url) return url
-      }
+      const byId = ask(byCall, row.getAttribute('data-chat-call-id'))
+      if (byId) return byId
       // a call a PTC program made sits inside the program's row: the node / flow key above it is the
       // PROGRAM's, so asking by it handed every inner call the program's picture. Such a row is
       // matched only by what is its own (its id, its words, a path it prints).
       const nested = !!row.closest('[data-subcalls]')
-      const byRow = nested ? null : kit.picForRow
       // dsh marks the node it rendered with `data-chat-node-key` (its own key) and the *position* it
       // occupies with `data-chat-flow-key` (a group key when the line sits inside a collapsed group,
       // or a JSON pair when it belongs to a group part). The picture map is keyed by the node key, so
@@ -148,24 +167,18 @@ part({
         const held = (row.hasAttribute(sel) ? row : row.closest(`[${sel}]`))
         return held ? held.getAttribute(sel) : ''
       }
-      const flowKey = pick('data-chat-node-key') || pick('data-chat-flow-key')
-      if (typeof byRow === 'function' && flowKey) {
-        let url = ''
-        try { url = byRow(flowKey) || '' } catch (e) { url = '' }
-        if (url) return url
-      }
+      const byRow = nested ? null : kit.picForRow
+      const byKey = ask(byRow, pick('data-chat-node-key') || pick('data-chat-flow-key'))
+      if (byKey) return byKey
       // last resort: the row says what it did ("Simplify the call-id test", "读取 dsh-claude-shared/build.mjs"),
       // and conversation-flow indexed its pictures by exactly that line — the one key that does not move
       // the words index is built from the PROGRAM's rows too: an inner call that reads like its
       // program (「Screenshot regenerated repro」 twice) would inherit its picture through it
       const byText = nested ? null : kit.picForText
       if (typeof byText === 'function') {
-        const title = titleOf(row)
         const summary = (row.querySelector('[class*="_summary"]') || {}).textContent || ''
-        for (const t of [title, summary]) {
-          if (!String(t || '').trim()) continue
-          let url = ''
-          try { url = byText(String(t)) || '' } catch (e) { url = '' }
+        for (const t of [titleOf(row), summary]) {
+          const url = String(t || '').trim() ? ask(byText, String(t)) : ''
           if (url) return url
         }
       }
@@ -174,21 +187,15 @@ part({
       const readsImage = !!row.querySelector('[data-tool="read_image"],[data-tool="view_image"]')
         || /^(读取图片|read image|画像を読み取り)$/i.test(titleOf(row))
       if (!readsImage) return ''
-      const url = kit.picUrl
-      if (typeof url !== 'function') return ''
       const m = String(row.textContent || '').match(IMGP)
       // a glob or a fragment is not a picture: `ls src/parts/*.png` is a command, not a file
       if (!m || /[*?%]/.test(m[0]) || m[0].split('/').length < 3) return ''
-      let found = ''
-      try { found = url(m[0]) || '' } catch (e) { found = '' }
+      const found = ask(kit.picUrl, m[0])
       // an inner call that names a file its program also produced: show the program's copy of it, which
       // is versioned by that call (the path alone shows whatever the file holds now, i.e. the last run's)
-      if (found && nested && typeof byCall === 'function') {
+      if (found && nested) {
         const prog = row.parentElement && row.parentElement.closest('[data-chat-call-id]')
-        const progId = prog && prog.getAttribute('data-chat-call-id')
-        let own = ''
-        try { own = progId ? byCall(progId) || '' : '' } catch (e) { own = '' }
-        const fileOf = (u: string) => u.replace(/[?&]v=[^&]*/g, '')
+        const own = ask(byCall, prog && prog.getAttribute('data-chat-call-id'))
         if (own && fileOf(own) === fileOf(found)) return own
       }
       return found
@@ -288,7 +295,6 @@ part({
       // a PTC program whose inner call shows this picture: the picture belongs on that call's row
       // (the one that made or read it), not twice, once on the program as well
       // (compared by file: the program's URL carries its own call as the version, the inner row's not)
-      const fileOf = (u: string | null) => String(u || '').replace(/[?&]v=[^&]*/g, '')
       const inner = row.closest('[data-subcalls]') ? [] : (Array.from(row.querySelectorAll('[data-subcalls] [data-dcd-group-pic-src]')) as HTMLElement[])
       if (inner.some((e) => fileOf(e.getAttribute('data-dcd-group-pic-src')) === fileOf(want))) { clearRowPic(host); return }
       if (host.getAttribute('data-dcd-group-pic-src') === want && host.hasAttribute('data-dcd-group-pic')) {
@@ -422,11 +428,6 @@ part({
       })
       return b
     }
-    const setText = (el, s) => { if (el.textContent !== s) el.textContent = s }
-    const setAttr = V.setAttr
-    const setFlag = V.setFlag
-    const zh = V.zh
-
     /* ---- images (read_image) ---- */
     const isImageCall = (item) => !!item.querySelector('[data-tool="read_image"],[data-tool="view_image"]')
     // per read_image call: how many times we opened it so its image mounts, or 'user' once the user took over.
@@ -617,8 +618,7 @@ part({
       // undo rows that are no longer in a group
       for (const m of document.querySelectorAll('[data-dcd-group-member]')) {
         if (keep.has(m)) continue
-        for (const a of ['data-dcd-group-member', 'data-dcd-group-head', 'data-dcd-group-first', 'data-dcd-group-last', 'data-dcd-group-hide', 'data-dcd-group-closing']) m.removeAttribute(a)
-        const n0 = m.querySelector(NODE); if (n0) n0.removeAttribute('data-dcd-group-closing')
+        clearMember(m)
         const b = m.querySelector(':scope > .dcd-group-head'); if (b) { cancelClose(b); b.remove() }
         const nw = m.querySelector(':scope > .dcd-group-now'); if (nw) nw.remove()
       }
@@ -701,8 +701,7 @@ part({
           if (info && info.thin) want.add(program)
         }
       }
-      for (const el of document.querySelectorAll('[data-dcd-wrap]')) if (!want.has(el)) el.removeAttribute('data-dcd-wrap')
-      for (const el of want) if (!el.hasAttribute('data-dcd-wrap')) el.setAttribute('data-dcd-wrap', '')
+      syncMarks('data-dcd-wrap', want)
     }
     function markEcho() {
       const marked = new Set<Element>()
@@ -719,8 +718,7 @@ part({
           if (out && sameOutput(norm(out.text), want)) marked.add(out.el)
         }
       }
-      for (const el of document.querySelectorAll('[data-dcd-echo]')) if (!marked.has(el)) el.removeAttribute('data-dcd-echo')
-      for (const el of marked) if (!el.hasAttribute('data-dcd-echo')) el.setAttribute('data-dcd-echo', '')
+      syncMarks('data-dcd-echo', marked)
     }
 
     /* the caption under an opened picture: dsh prints the file's absolute path as plain text there. It
@@ -806,39 +804,28 @@ part({
         document.removeEventListener('click', onRowClick, true)
         document.removeEventListener('click', openPicPath, true)
         document.removeEventListener('keydown', openPicPath, true)
-        document.querySelectorAll('[data-dcd-pic-path]').forEach((m) => { for (const a of ['data-dcd-pic-path', 'role', 'tabindex', 'title']) m.removeAttribute(a) })
+        document.querySelectorAll('[data-dcd-pic-path]').forEach((m) => { for (const a of ['role', 'tabindex', 'title']) m.removeAttribute(a) })
         for (const t of pendingClose.values()) clearTimeout(t)
         pendingClose.clear()
         manual.clear(); firstSeen.clear(); autoOpened.clear()
-        document.querySelectorAll('[data-dcd-group-imgauto]').forEach((m) => m.removeAttribute('data-dcd-group-imgauto'))
         if (timer) clearTimeout(timer)
         sheet.remove()
-        document.querySelectorAll('[data-dcd-group-plan]').forEach((m) => m.removeAttribute('data-dcd-group-plan'))
-        document.querySelectorAll('[data-dcd-group-done]').forEach((m) => m.removeAttribute('data-dcd-group-done'))
-        document.querySelectorAll('[data-dcd-lead]').forEach((m) => m.removeAttribute('data-dcd-lead'))
-        document.querySelectorAll('[data-dcd-echo]').forEach((m) => m.removeAttribute('data-dcd-echo'))
-        document.querySelectorAll('[data-dcd-wrap]').forEach((m) => m.removeAttribute('data-dcd-wrap'))
-        document.querySelectorAll('[data-dcd-group-title]').forEach((m) => m.removeAttribute('data-dcd-group-title'))
+        document.querySelectorAll('[data-dcd-group-member]').forEach(clearMember)
+        unmark('data-dcd-pic-path', 'data-dcd-group-imgauto', 'data-dcd-group-plan', 'data-dcd-group-done',
+          'data-dcd-lead', 'data-dcd-echo', 'data-dcd-wrap', 'data-dcd-group-title')
         document.querySelectorAll('.dcd-group-head').forEach((b) => b.remove())
         document.querySelectorAll('.dcd-group-now').forEach((b) => b.remove())
-        document.querySelectorAll('[data-dcd-group-member]').forEach((m) => {
-          for (const a of ['data-dcd-group-member', 'data-dcd-group-head', 'data-dcd-group-first', 'data-dcd-group-last', 'data-dcd-group-hide', 'data-dcd-group-closing']) m.removeAttribute(a)
-          const n0 = m.querySelector(NODE); if (n0) n0.removeAttribute('data-dcd-group-closing')
-        })
         // undo what hideContextRows / fixCommandInput did with inline styles and foreign nodes
         document.querySelectorAll('[data-dcd-group-gone]').forEach((b) => {
           b.removeAttribute('data-dcd-group-gone')
           const row = b.closest<HTMLElement>('[class$="_root"]') || b.parentElement
           if (row) row.style.display = ''
         })
-        document.querySelectorAll('[data-dcd-group-fb-src]').forEach((m) => m.removeAttribute('data-dcd-group-fb-src'))
+        unmark('data-dcd-group-fb-src')
         document.querySelectorAll('[data-dcd-group-fb]').forEach((m) => m.remove())
         closePeek()
         document.querySelectorAll('.dcd-group-rowthumb').forEach((m) => m.remove())
-        document.querySelectorAll('[data-dcd-group-pic]').forEach((m) => {
-          m.removeAttribute('data-dcd-group-pic')
-          m.removeAttribute('data-dcd-group-pic-src')
-        })
+        unmark('data-dcd-group-pic', 'data-dcd-group-pic-src')
         picState.clear()
       }
     }

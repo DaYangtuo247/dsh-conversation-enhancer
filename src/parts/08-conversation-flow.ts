@@ -8,8 +8,6 @@
  *   - consecutive tool calls fold into one quiet line, 「命令 ×3 · 失败 ×1 ›」, that opens
  *     to one bordered card with a row per call (open by default in 详尽). In 标准 the hidden
  *     thinking does not split a run.
- *   - consecutive tool calls fold into one quiet line, 「命令 ×3 · 失败 ×1 ›」, that opens
- *     to one bordered card with a row per call (open by default in 详尽).
  * A running turn reads as three stacked lines, and each answers one question:
  *   - the counts (「思考 ×6 · 工具 ×8 ›」) — what has happened so far;
  *   - the live line under the group it belongs to — what is happening now: the call in flight with
@@ -342,17 +340,10 @@ part({
     }
     /** FNV-1a's multiplier over a mixed number (avalanche enough for one equality test). */
     const mix = (h: number, v: number) => Math.imul(h ^ (v | 0), 16777619)
-    /**
-     * What one row contributes, kept per node object together with the handful of objects and
-     * numbers it was computed from. A settled row keeps its `data`, its turn and its end object
-     * across notifications (dsh hands out a new node only when something in it changed), so the
-     * whole scan collapses to a few identity compares plus one mix: that is what made a pass over a
-     * 17k-node transcript cheap enough to run on every token.
-     *
-     * `b0` is the length of the row's first text block: the one field that can change inside an
-     * otherwise identical `data` while a thought is being written, and the only reason the fast path
-     * is safe.
-     */
+    /* Per entry / per node: what its share of the signature was computed from (see nodeContrib).
+       `b0` is the length of the row's first text block: the one field that can change inside an
+       otherwise identical `data` while a thought is being written, and the only reason the fast path
+       is safe. */
     const SIG_ENTRY = new WeakMap<object, { kind: string, key: string, part: string, id: number }>()
     const SIG_NODE = new WeakMap<object, {
       key: number, kind: number, vis: string, visId: number
@@ -375,7 +366,8 @@ part({
      * What one row contributes to the transcript's shape, cached per node object together with the
      * handful of objects and numbers it was computed from (`SIG_NODE` above). A settled row keeps its
      * `data`, its turn and its end object across notifications — dsh hands out a new node only when
-     * something in it changed — so the whole scan collapses to a few identity compares plus one mix.
+     * something in it changed — so the whole scan collapses to a few identity compares plus one mix:
+     * that is what made a pass over a 17k-node transcript cheap enough to run on every token.
      *
      * The same number feeds a turn's own signature (see `layout`), which is what lets a turn the
      * reader is not looking at skip its re-render.
@@ -863,36 +855,19 @@ part({
     return {
       inject: ['slots'],
       apply(ctx) {
-        // dsh hands renderSlot (how nodes get drawn) only to the entry that declared the node slot,
-        // and that slot cannot be declared twice. So instead of registering a rival entry, wrap the
-        // component of dsh's own entry in place, and put it back on dispose. dsh's entry registers
-        // after us and is re-registered on reload, so follow it.
-        const OURS = Symbol.for('dsh-conversation-enhancer/conversation-flow')
-        let patched // { entry, original }
-        const restore = () => {
-          if (patched && patched.entry.component && patched.entry.component[OURS]) patched.entry.component = patched.original
-          patched = undefined
-          document.documentElement.removeAttribute('data-dcf'); sheet.remove()
-        }
-        const sync = () => {
-          const native = ctx.slots.entries(SLOT).find((e) => !(e.options && e.options.id) && e.children)
-          if (!native) { restore(); return }
-          if (patched && patched.entry === native && native.component && native.component[OURS]) return
-          restore()
-          const original = native.component
-          const Flow = makeFlow(original)
-          Flow[OURS] = true
-          native.component = Flow
-          patched = { entry: native, original }
-          sheet.ensure()
-          document.documentElement.setAttribute('data-dcf', '')
-        }
-        let timer
-        ctx.effect(() => {
-          const unsub = ctx.slots.subscribe(SLOT, () => { clearTimeout(timer); timer = setTimeout(sync, 0) })
-          sync()
-          return () => { clearTimeout(timer); unsub(); restore() }
-        }, 'conversation-flow: wrap the native flow')
+        // dsh hands renderSlot (how nodes get drawn) only to the entry that declared the node slot —
+        // the one with children — and that slot cannot be declared twice: so its component is wrapped
+        // in place (lib/slot-wrap). `data-dcf` tells the other parts and the styles the flow is on.
+        wrapNativeEntries(ctx, {
+          slot: SLOT,
+          tag: 'conversation-flow',
+          label: 'conversation-flow: wrap the native flow',
+          wrap: (entry) => (entry.children ? makeFlow : null),
+          onSync(n) {
+            if (n) { sheet.ensure(); document.documentElement.setAttribute('data-dcf', '') }
+            else { document.documentElement.removeAttribute('data-dcf'); sheet.remove() }
+          },
+        })
       },
     }
   },

@@ -31,15 +31,16 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
     }), [props.useSession, props.useChat])
   }
   const entriesSig = (entries) => entries.map((e) => `${e.key}:${e.groupPart || ''}`).join('|')
+  /** The same dsh flow, the same stores and cwd: what every memoized row below compares first. */
+  const sameHost = (a, b) => a.Native === b.Native && a.props.cwd === b.props.cwd
+    && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession
   // memoized so a turn re-render does not redraw every native row: only the rows whose entries
   // actually changed call the native flow again (the streaming seat updates on its own regardless).
   // `lang` is a redraw signal: the seats read dsh's locale themselves, but a bailed memo would
   // keep their old strings on screen after a language switch.
   const NativeRows = React.memo(function NativeRows({ Native, props, quiet, entries, lang }) {
     return h(Native, { ...props, ...quiet, entries, pendingInputs: [] })
-  }, (a, b) => a.Native === b.Native && a.quiet === b.quiet && a.props.cwd === b.props.cwd
-    && a.lang === b.lang
-    && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession
+  }, (a, b) => sameHost(a, b) && a.quiet === b.quiet && a.lang === b.lang
     && entriesSig(a.entries) === entriesSig(b.entries))
 
   const CHEVRON = h('svg', { width: 12, height: 12, viewBox: '0 0 12 12', 'aria-hidden': true },
@@ -312,9 +313,7 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
           // bundle is renamed too
           h('div', { className: 'dcd-flow-card dcf-card' }, h(NativeRows, { Native, props, quiet, lang, entries: rows.map((r) => r.entry) })))) : null)
   }, (a, b) => a.run === b.run && a.live === b.live && a.turnLive === b.turnLive && a.defaultOpen === b.defaultOpen
-    && a.view === b.view && a.lang === b.lang
-    && a.Native === b.Native && a.quiet === b.quiet && a.props.cwd === b.props.cwd
-    && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession)
+    && a.view === b.view && a.lang === b.lang && a.quiet === b.quiet && sameHost(a, b))
 
   /* ---------- thinking: a card that matches the tool card ---------- */
   /** Reasoning is prose with the odd `code` / **bold**: paragraphs, line breaks and those two marks. */
@@ -419,6 +418,14 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
 
   /** turn key -> the row keys / call ids / row words that turn wrote into the shared picture maps */
   const ownedPics = new Map()
+  /** Forget what a turn wrote into the picture maps, except what it still has (`keep`; null: all). */
+  const dropOwned = (turnKey, keep) => {
+    const was = ownedPics.get(turnKey)
+    if (!was) return
+    for (const k of was.keys) if (!keep || !keep.keys.has(k)) rowPics.delete(k)
+    for (const k of was.ids) if (!keep || !keep.ids.has(k)) rowPicsById.delete(k)
+    for (const k of was.texts) if (!keep || !keep.texts.has(k)) rowPicsByText.delete(k)
+  }
   const Turn = React.memo(function Turn({ turn, last, openRuns, view, Native, props, quiet, lang }) {
     // the group the live line must sit under: the last run of the turn, whatever comes after it
     const lastRunItem = (() => { for (let i = turn.items.length - 1; i >= 0; i--) if (turn.items[i].type === 'run') return turn.items[i]; return null })()
@@ -487,24 +494,12 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
       // the last turn drawn kept its tiles, an earlier turn's rows opened onto none
       const texts = new Set()
       for (const it of list) for (const r of it.rows) texts.add(rowText(r.node))
-      const was = ownedPics.get(turn.key)
-      if (was) {
-        for (const k of was.keys) if (!keys.has(k)) rowPics.delete(k)
-        for (const k of was.ids) if (!ids.has(k)) rowPicsById.delete(k)
-        for (const k of was.texts) if (!texts.has(k)) rowPicsByText.delete(k)
-      }
+      dropOwned(turn.key, { keys, ids, texts })
       ownedPics.set(turn.key, { keys, ids, texts })
       return list
     }, [turn, props.cwd])
     // a turn that leaves the list (a session switch, an older page dropped) clears what it wrote
-    React.useEffect(() => () => {
-      const was = ownedPics.get(turn.key)
-      if (!was) return
-      for (const k of was.keys) rowPics.delete(k)
-      for (const k of was.ids) rowPicsById.delete(k)
-      for (const k of was.texts) rowPicsByText.delete(k)
-      ownedPics.delete(turn.key)
-    }, [turn.key])
+    React.useEffect(() => () => { dropOwned(turn.key, null); ownedPics.delete(turn.key) }, [turn.key])
     const top = stretches(turn.items)
     const w = words()
     // A turn that was stopped or failed is never folded: dsh keeps its process open for exactly
@@ -590,8 +585,7 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
   // as a hitch whenever work advanced.
   }, (a, b) => a.turn.sig === b.turn.sig && a.turn.open === b.turn.open && a.turn.reason === b.turn.reason
     && a.last === b.last && a.openRuns === b.openRuns && a.view === b.view && a.lang === b.lang
-    && a.Native === b.Native && a.quiet === b.quiet && a.props.cwd === b.props.cwd
-    && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession)
+    && a.quiet === b.quiet && sameHost(a, b))
 
   // the tail (dsh's running line + pending inputs) is the native flow with no rows; memoized so a
   // streamed token does not redraw it — RunningStatus subscribes to the running state on its own.
@@ -600,9 +594,7 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
   // as a second copy of the message just sent, so its identity is part of the comparison.
   const Tail = React.memo(function Tail({ Native, props, lang }) {
     return h(Native, { ...props, entries: [] })
-  }, (a, b) => a.Native === b.Native && a.props.cwd === b.props.cwd && a.lang === b.lang
-    && a.props.pendingInputs === b.props.pendingInputs
-    && a.props.useChat === b.props.useChat && a.props.useSession === b.props.useSession)
+  }, (a, b) => sameHost(a, b) && a.lang === b.lang && a.props.pendingInputs === b.props.pendingInputs)
 
   return { useQuiet, Turn, Tail }
 }

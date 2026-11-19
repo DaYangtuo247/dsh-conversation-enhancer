@@ -341,7 +341,7 @@ test('a row is recognised by its own words when its keys move', () => {
   assert.match(flow, /const rowPicsByText = new Map\(\)/, 'the index itself');
   assert.match(flow, /kit\.picForText = \(text\) =>/, 'published to the DOM pass');
   assert.match(group, /const byText = (?:nested \? null : )?kit\.picForText/, 'asked before scraping the text for a path');
-  assert.match(view, /for \(const k of was\.texts\) if \(!texts\.has\(k\)\) rowPicsByText\.delete\(k\)/, 'and pruned with the rest');
+  assert.match(view, /for \(const k of was\.texts\) if \(!keep \|\| !keep\.texts\.has\(k\)\) rowPicsByText\.delete\(k\)/, 'and pruned with the rest');
   // pruned per turn: against one turn's rows, the shared maps lost every other turn's pictures
   assert.doesNotMatch(view, /for \(const k of \[\.\.\.rowPics\.keys\(\)\]\) if \(!keys\.has\(k\)\)/, 'no turn prunes another turn\'s rows');
   assert.match(view, /ownedPics\.set\(turn\.key, \{ keys, ids, texts \}\)/, 'each turn tracks what it wrote');

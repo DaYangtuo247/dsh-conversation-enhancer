@@ -8,8 +8,8 @@
  * (the HTTP status, type, code, request id …) go on one quiet line under it, key and value. A body
  * with no message is shown as indented JSON. A text that is not JSON is left as it is.
  *
- * Nothing of dsh's is redrawn. Like conversation-flow, it wraps the component of dsh's own keyed
- * entries (`conversation.chat.node` · turn-error / model-retry) in place: the node it hands on
+ * Nothing of dsh's is redrawn. It wraps the component of dsh's own keyed entries in place
+ * (lib/slot-wrap; `conversation.chat.node` · turn-error / model-retry): the node it hands on
  * carries the message, and the fields are drawn under the row (turn-error) or follow the message
  * (retry, whose details are dsh's own). The `t` handed to the retry says its delay in seconds.
  */
@@ -17,8 +17,7 @@ part({
   id: 'dsh-error-notes',
   factory(require, kit) {
     const { React, h } = kit
-    const zh = () => /^zh/i.test(document.documentElement.lang || navigator.language || 'zh')
-    const seconds = (s) => (zh() ? `${s} 秒` : `${s}s`)
+    const seconds = (s) => (kit.vocab.zh() ? `${s} 秒` : `${s}s`)
 
     // codes dsh already turns into its own sentence (MessageItem's failureMessage): its words win
     const NATIVE_CODES = new Set(['ACCOUNT_SIGNED_OUT', 'INTERRUPTED', 'ACCOUNT_SIGN_IN_REQUIRED', 'QUOTA', 'ACCOUNT_QUOTA', 'AUTH'])
@@ -58,8 +57,6 @@ part({
     }
 
     /* ---------- wrap dsh's own renderers ---------- */
-    const SLOT = 'conversation.chat.node'
-    const OURS = Symbol.for('dsh-conversation-enhancer/error-notes')
     const sheet = kit.sheet('error-notes', CSS_ERROR_NOTES)
 
     /** Under the row: the body's other fields, or — a body with no message — the body itself. */
@@ -100,40 +97,17 @@ part({
       }
     }
 
+    const WRAP = { 'turn-error': wrapTurnError, 'model-retry': wrapRetry }
     return {
       inject: ['slots'],
       apply(ctx) {
-        const WRAP = { 'turn-error': wrapTurnError, 'model-retry': wrapRetry }
-        const patched = new Map() // entry -> original component
-        const restore = () => {
-          for (const [entry, original] of patched) if (entry.component && entry.component[OURS]) entry.component = original
-          patched.clear()
-          sheet.remove()
-        }
-        const sync = () => {
-          const live = new Set()
-          for (const entry of ctx.slots.entries(SLOT)) {
-            const key = entry.options && entry.options.key
-            const wrap = WRAP[key]
-            // dsh's own entry only (ours carry an id)
-            if (!wrap || (entry.options && entry.options.id) || !entry.component) continue
-            live.add(entry)
-            if (entry.component[OURS]) continue
-            const original = entry.component
-            const Wrapped = wrap(original)
-            Wrapped[OURS] = true
-            entry.component = Wrapped
-            patched.set(entry, original)
-          }
-          for (const entry of [...patched.keys()]) if (!live.has(entry)) patched.delete(entry)
-          if (patched.size) sheet.ensure()
-        }
-        let timer
-        ctx.effect(() => {
-          const unsub = ctx.slots.subscribe(SLOT, () => { clearTimeout(timer); timer = setTimeout(sync, 0) })
-          sync()
-          return () => { clearTimeout(timer); unsub(); restore() }
-        }, 'error-notes: lay out failed requests')
+        wrapNativeEntries(ctx, {
+          slot: 'conversation.chat.node',
+          tag: 'error-notes',
+          label: 'error-notes: lay out failed requests',
+          wrap: (entry) => WRAP[entry.options && entry.options.key] || null,
+          onSync: (n) => (n ? sheet.ensure() : sheet.remove()),
+        })
       },
     }
   },
