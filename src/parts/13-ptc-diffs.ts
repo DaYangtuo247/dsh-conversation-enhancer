@@ -10,17 +10,15 @@
  *
  * So for exactly those calls (settled, not failed, every recorded path absolute), the row is handed
  * the call without its parent link, and dsh draws what it draws for any other edit: its diff when
- * opened and its own +N -M after the size. Like error-notes, this wraps the component of dsh's own
- * keyed entries (`tool.call.toolview` · edit / write / apply_patch) in place and puts it back on
+ * opened and its own +N -M after the size. It wraps the component of dsh's own keyed entries in
+ * place (lib/slot-wrap; `tool.call.toolview` · edit / write / apply_patch) and puts it back on
  * dispose; nothing of dsh's is redrawn.
  */
 part({
   id: 'dsh-ptc-diffs',
   factory(require, kit) {
     const { h } = kit
-    const SLOT = 'tool.call.toolview'
     const KEYS = new Set(['edit', 'write', 'apply_patch'])
-    const OURS = Symbol.for('dsh-conversation-enhancer/ptc-diffs')
     const absolute = (p) => typeof p === 'string' && (p.startsWith('/') || /^[A-Za-z]:[\\/]/.test(p))
 
     /** A program's settled edit whose result says where it wrote, absolutely: safe to draw as any edit. */
@@ -53,33 +51,12 @@ part({
     return {
       inject: ['slots'],
       apply(ctx) {
-        const patched = new Map() // entry -> original component
-        const restore = () => {
-          for (const [entry, original] of patched) if (entry.component && entry.component[OURS]) entry.component = original
-          patched.clear()
-        }
-        const sync = () => {
-          const live = new Set()
-          for (const entry of ctx.slots.entries(SLOT)) {
-            const key = entry.options && entry.options.key
-            // dsh's own entries only (ours carry an id)
-            if (!KEYS.has(key) || (entry.options && entry.options.id) || !entry.component) continue
-            live.add(entry)
-            if (entry.component[OURS]) continue
-            const original = entry.component
-            const Wrapped = wrap(original)
-            Wrapped[OURS] = true
-            entry.component = Wrapped
-            patched.set(entry, original)
-          }
-          for (const entry of [...patched.keys()]) if (!live.has(entry)) patched.delete(entry)
-        }
-        let timer
-        ctx.effect(() => {
-          const unsub = ctx.slots.subscribe(SLOT, () => { clearTimeout(timer); timer = setTimeout(sync, 0) })
-          sync()
-          return () => { clearTimeout(timer); unsub(); restore() }
-        }, 'ptc-diffs: draw a program\'s edits with their diff')
+        wrapNativeEntries(ctx, {
+          slot: 'tool.call.toolview',
+          tag: 'ptc-diffs',
+          label: 'ptc-diffs: draw a program\'s edits with their diff',
+          wrap: (entry) => (KEYS.has(entry.options && entry.options.key) ? wrap : null),
+        })
       },
     }
   },

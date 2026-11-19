@@ -46,7 +46,7 @@ src/
   parts/          one part each, built in filename order
     00-dom-hub.ts   shared MutationObserver hub + <html> attribute watcher
     00-shared.ts    the words (WORDS), tool kinds, chevrons, motion switch
-    01-… 10-…       the parts listed above
+    01-… 13-…       the parts listed above
   styles/         the CSS, one module per part (00-shared.scss … 12-error-notes.scss)
     _shared.scss   partial: $summary-heads plus the shared mixins (ellipsis, focus-ring, icon-box)
     03-… 04-…       use __DCG_*__ placeholders (a /* @js … */ directive makes the build
@@ -60,6 +60,9 @@ src/
     flow-view.ts    conversation-flow's React components (makeFlowView): Turn, the run / thought / steps
                     lines, thumbnails and the lightbox — the view half of parts/08, which keeps
                     the model (classification, layout, wording, pictures) and hands it over as one object
+    native.ts       the dsh DOM this bundle leans on, as one list the native-probe part checks on load
+    slot-wrap.ts    wrapNativeEntries(): wrap dsh's own entries of a slot in place, put them back on
+                    dispose (conversation-flow, error-notes, ptc-diffs)
 ```
 
 ```bash
