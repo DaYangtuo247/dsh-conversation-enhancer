@@ -1,24 +1,28 @@
+# preview
+
+![](./preview.gif)
+
 # dsh-conversation-enhancer
 
 An enhancer for the conversation view of DeepSeek Harness (web and DSH NEXT): it re-lays out what a turn shows — work details, tool calls, the plan card — and evens out how the whole column reads, from typography to command colours. Earlier names: dsh-claude-transcript → dsh-better-display (2026-11-11) → dsh-conversation-enhancer (2026-11-16, the name it is published under). The 回到底部 button lives in dsh-composer-display (it sits on the input box); surface colours and glass are in dsh-whale-theme.
 
-| Part | File | What it does |
-| --- | --- | --- |
-| `dom-hub` | `src/parts/00-dom-hub.ts` | One shared, frame-coalesced MutationObserver for every DOM-scanning part, plus the shared watcher on `<html>`'s `data-dcd-view` / `lang` |
-| `display-shared` | `src/parts/00-shared.ts` | The words and styles every part reads: tool kinds and the 「命令 ×3」 word lists, the quiet summary-line CSS, the motion keyframes and the 动效 switch |
-| `transcript-view` | `src/parts/01-transcript-view.ts` | Replaces dsh's 工作步骤展示 (标准 / 思考 / 详尽) and pins dsh's own folding off |
-| `transcript-polish` | `src/parts/02-transcript-polish.ts` | Tooltips and other small touches |
-| `tool-groups` | `src/parts/03-tool-groups.ts` | Tool calls folded into groups, with image thumbnails |
-| `plan-checklist` | `src/parts/04-plan-checklist.ts` | Inline plan card from todo_write |
-| `typography` | `src/parts/05-typography.ts` | One sans, reading sizes and text colours for replies, bubbles and code (follows dsh-whale-theme's 界面字体 / 代码字体 when set) |
-| `bash-highlight` | `src/parts/06-bash-highlight.ts` | Syntax colours for the 「$ …」 line of command rows |
-| `render-offscreen` | `src/parts/07-render-offscreen.ts` | `content-visibility:auto` on transcript rows far from the viewport, so off-screen turns skip layout and paint |
-| `conversation-flow` | `src/parts/08-conversation-flow.ts` | Draws the conversation itself one quiet column (turns, runs, thinking, step folds), still calling dsh's own renderer row by row |
-| `auto-older` | `src/parts/09-auto-older.ts` | Loads 更早消息 automatically when the reader scrolls to the top, one page per gesture |
-| `user-markdown` | `src/parts/10-user-markdown.ts` | Renders the user's own message bubble with dsh's Markdown renderer |
-| `native-probe` | `src/parts/11-native-probe.ts` | Names, once per page load, the dsh internals the styles no longer find after an upgrade |
-| `error-notes` | `src/parts/12-error-notes.ts` | Lays out a failed model request's JSON body: its message as the sentence, the status / type / code on a quiet line under it |
-| `ptc-diffs` | `src/parts/13-ptc-diffs.ts` | Gives the edits a PTC program made dsh's own diff and +N -M, which dsh leaves out for any call with a parent |
+| Part                | File                                | What it does                                                                                                                                           |
+| ------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dom-hub`           | `src/parts/00-dom-hub.ts`           | One shared, frame-coalesced MutationObserver for every DOM-scanning part, plus the shared watcher on `<html>`'s `data-dcd-view` / `lang`               |
+| `display-shared`    | `src/parts/00-shared.ts`            | The words and styles every part reads: tool kinds and the 「命令 ×3」 word lists, the quiet summary-line CSS, the motion keyframes and the 动效 switch |
+| `transcript-view`   | `src/parts/01-transcript-view.ts`   | Replaces dsh's 工作步骤展示 (标准 / 思考 / 详尽) and pins dsh's own folding off                                                                        |
+| `transcript-polish` | `src/parts/02-transcript-polish.ts` | Tooltips and other small touches                                                                                                                       |
+| `tool-groups`       | `src/parts/03-tool-groups.ts`       | Tool calls folded into groups, with image thumbnails                                                                                                   |
+| `plan-checklist`    | `src/parts/04-plan-checklist.ts`    | Inline plan card from todo_write                                                                                                                       |
+| `typography`        | `src/parts/05-typography.ts`        | One sans, reading sizes and text colours for replies, bubbles and code (follows dsh-whale-theme's 界面字体 / 代码字体 when set)                        |
+| `bash-highlight`    | `src/parts/06-bash-highlight.ts`    | Syntax colours for the 「$ …」 line of command rows                                                                                                    |
+| `render-offscreen`  | `src/parts/07-render-offscreen.ts`  | `content-visibility:auto` on transcript rows far from the viewport, so off-screen turns skip layout and paint                                          |
+| `conversation-flow` | `src/parts/08-conversation-flow.ts` | Draws the conversation itself one quiet column (turns, runs, thinking, step folds), still calling dsh's own renderer row by row                        |
+| `auto-older`        | `src/parts/09-auto-older.ts`        | Loads 更早消息 automatically when the reader scrolls to the top, one page per gesture                                                                  |
+| `user-markdown`     | `src/parts/10-user-markdown.ts`     | Renders the user's own message bubble with dsh's Markdown renderer                                                                                     |
+| `native-probe`      | `src/parts/11-native-probe.ts`      | Names, once per page load, the dsh internals the styles no longer find after an upgrade                                                                |
+| `error-notes`       | `src/parts/12-error-notes.ts`       | Lays out a failed model request's JSON body: its message as the sentence, the status / type / code on a quiet line under it                            |
+| `ptc-diffs`         | `src/parts/13-ptc-diffs.ts`         | Gives the edits a PTC program made dsh's own diff and +N -M, which dsh leaves out for any call with a parent                                           |
 
 Part of a set of independent DeepSeek Harness UI bundles: [dsh-composer-display](https://github.com/DaYangtuo247/dsh-composer-display) (the input box and what sits on it), [dsh-conversation-enhancer](https://github.com/DaYangtuo247/dsh-conversation-enhancer) (the conversation view), [dsh-whale-theme](https://github.com/DaYangtuo247/dsh-whale-theme) (background, glass, fonts and its own Settings › 主题 page) and [dsh-context-monitor](https://github.com/DaYangtuo247/dsh-context-monitor) (context usage in the composer and in a 上下文透视 tab). Each one works on its own; they share one build script, vendored here as `scripts/`.
 
@@ -121,11 +125,11 @@ Replaces dsh's own **Settings › 通用设置 › 工作步骤展示**. dsh's f
 - This part registers its own row under the same slot id (`settings.general.item` › `transcript-view`) at priority −10, so it renders in place of dsh's row and its two collapse rows (收起时机 / 收起后显示的回复 do nothing without folding).
 - On the first run the choice is carried over from what dsh's setting showed; after that it is saved in localStorage (`dsh-transcript-view.mode`).
 
-| 工作步骤展示 | Shows |
-| --- | --- |
-| **标准 / Normal** | Replies and one-line command rows. Thinking is hidden; a process group left with only thinking takes no space. |
-| **思考 / Thinking** | Also every thinking block expanded. |
-| **详尽 / Verbose** | Thinking expanded, and every command card open with its input and output. |
+| 工作步骤展示        | Shows                                                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **标准 / Normal**   | Replies and one-line command rows. Thinking is hidden; a process group left with only thinking takes no space. |
+| **思考 / Thinking** | Also every thinking block expanded.                                                                            |
+| **详尽 / Verbose**  | Thinking expanded, and every command card open with its input and output.                                      |
 
 `html[data-dcd-view]` carries the view (normal / thinking / verbose) for other parts; `dcd:view:set` switches it (the title menu's 对话显示 › in dsh-claude-shell). Rows it opened are closed again when the view steps down; rows you open or close by hand are left alone, and the reading position is kept. The row and dropdown come from `kit.settingsUI()` (dsh-claude-shared/kit.js), shared with the theme's 主题 page.
 
@@ -134,7 +138,7 @@ Replaces dsh's own **Settings › 通用设置 › 工作步骤展示**. dsh's f
 Small quiet touches in the DeepSeek Harness transcript. CSS only.
 
 - **Button tooltips:** left exactly as dsh ships them — same place (below the button), same dark chip, no colour, size, radius or shadow from us. A lifted version and a frosted one both read worse than the native chip and were pulled back out.
-- **Bubble vs. tooltip:** the quiet user-bubble selector matches on `[class*="_bubble"]`, and dsh's tooltip chip is `_bubble_<hash>` too — rendered *inside* the message, so your own messages' action labels came out as a tinted 18px bubble in reading size (the 6% `--dcd-type-text` tint, dark text), and no `!important` rule could outrank it. The selector now excludes `[role="tooltip"]`, with a test guarding it.
+- **Bubble vs. tooltip:** the quiet user-bubble selector matches on `[class*="_bubble"]`, and dsh's tooltip chip is `_bubble_<hash>` too — rendered _inside_ the message, so your own messages' action labels came out as a tinted 18px bubble in reading size (the 6% `--dcd-type-text` tint, dark text), and no `!important` rule could outrank it. The selector now excludes `[role="tooltip"]`, with a test guarding it.
 - **Calmer turn header:** the rule under 「已完成，用时 X 秒」 is dropped.
 - **Configurable reply actions:** each known button (copy / branch / like / dislike / context jump / save memory) can be shown, folded behind one ⋯ overflow, or hidden, and reordered by dragging its handle (rows slide between their slots, FLIP-style; arrow keys work too). Managed on the bundle's own plugin page (侧边栏 › 插件 › 已安装 › 对话显示, or the market card's ··· → 在插件页查看), registered under `plugins.bundle.config` like dsh-context's card; that page also notes that this plugin's 工作步骤展示 takes over the system setting. Display only: marker attributes plus a generated stylesheet, never reparenting or runtime discovery.
 - **Metadata last:** the turn's usage chip and timestamp (`_endInfo`) read after the ⋯ overflow, at the end of the action row.
@@ -161,11 +165,11 @@ Replaces dsh's `conversation.chat.flow` (the message list in 对话) with a quie
 
 While a turn runs, the bottom of the transcript is **three lines**, each answering one question:
 
-| Line | Answers | Says |
-| --- | --- | --- |
-| the counts, 「思考 ×6 · 工具 ×8 ›」 | what has happened so far | kinds and counts, `失败 ×N` in red |
+| Line                                         | Answers                                     | Says                                                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the counts, 「思考 ×6 · 工具 ×8 ›」          | what has happened so far                    | kinds and counts, `失败 ×N` in red                                                                                                                      |
 | the live line, under the group it belongs to | what is happening **now**, and for how long | the call in flight with its seconds (「命令 · sleep 3 · 2 秒」), 「思考中… · 12 秒」, 「输出中… · 3 秒」, or the words being thought with their seconds |
-| dsh's own running row (the whale) | how long this turn has been going | 「深度求索中，用时 12 秒」, untouched — same words, same blue, same shimmer |
+| dsh's own running row (the whale)            | how long this turn has been going           | 「深度求索中，用时 12 秒」, untouched — same words, same blue, same shimmer                                                                             |
 
 - **Every state on the live line is timed.** A call counts itself from the moment it started; thinking and writing count the turn they belong to. The clock reads the same way for a command and for a thought — one line never shows 「2 秒」 for work and nothing for waiting.
 - **Nothing is said twice.** The live line gives what and how long; the whale row gives the turn's own total. A thought with words on screen prints those words, not 「思考中…」 on top of the row below; when the live line has nothing of its own it is left out entirely, so one state never appears on two lines.
@@ -175,7 +179,7 @@ While a turn runs, the bottom of the transcript is **three lines**, each answeri
 - **A group folds while it runs.** Folding is for what is happening as much as for history: the open card is for reading, and a group that opened itself once per call made the transcript bounce. Open it by hand and it stays open until the view changes.
 - **A live line never falls back to a tool name.** While a call's arguments are still streaming the JSON is incomplete, so the line reads the command / path / pattern straight out of the partial body — 「sleep 3; date +%H:%M:%S 2 秒」 — and says the kind (「命令」/「command」) if nothing is readable yet. It never shows 「bash」.
 - **Pictures on the line, once each.** A run that read, wrote or named an image(s) shows up to three thumbnails, `+N` for the rest (a fixed
-count, never measured: tiles used to drop out as the line's own text grew, which read as flicker) — on the folded group line, or on the call's own line once it is open. Each image appears once per turn, on the first line that touched it; a path that will not load (a name inside a log is not a picture) is dropped instead of coming and going between redraws.
+  count, never measured: tiles used to drop out as the line's own text grew, which read as flicker) — on the folded group line, or on the call's own line once it is open. Each image appears once per turn, on the first line that touched it; a path that will not load (a name inside a log is not a picture) is dropped instead of coming and going between redraws.
 - **Every opened body is a reading pane.** Thinking caps at `clamp(200px, 42vh, 520px)`, a file preview at `clamp(200px, 40vh, 520px)`, terminal output at `clamp(180px, 34vh, 360px)` — each scrolls inside itself with overscroll contained, so a long thought or a long file cannot own the screen, and dsh's 查看 opens the full thing. A thought that is still arriving follows its own bottom unless you scroll up.
 - **Injected context is never drawn.** mnemon reviews, system reminders, the task-ledger rules and the rest arrive as user-shaped rows that dsh splices in while a turn is prepared and takes out again. They are neither half of the conversation, so they get no row at all — no flash at the start of a turn, and nothing to open afterwards either.
 - **One row per call when opened**, in dsh's own card: dividers, ›, and clicking a row opens dsh's input / output view.
@@ -195,11 +199,11 @@ dsh already keeps a plan: the agent's `todo_write` tool (`@deepseek-ai/dsh-tool-
 - The native dock stays mounted but off screen; its list is the data source.
 - A plain bordered card is drawn as the newest turn's **last** item: under the live line and dsh's running row while it runs, above the action bar once it is over — so it never jumps when the turn ends.
 
-| Status | Marker | Text |
-| --- | --- | --- |
-| completed | filled check circle | muted |
-| in_progress | spinning ring | primary |
-| pending | dashed circle | primary |
+| Status      | Marker              | Text    |
+| ----------- | ------------------- | ------- |
+| completed   | filled check circle | muted   |
+| in_progress | spinning ring       | primary |
+| pending     | dashed circle       | primary |
 
 With dsh-tool-groups installed, the 「更新任务清单」 rows are left out of the tool-call groups, since the card already shows the plan.
 
@@ -218,7 +222,7 @@ Override tokens: `--dcd-type-sans`, `--dcd-type-mono`, `--dcd-type-leading` on `
 
 ## bash-highlight
 
-Syntax colours for shell commands in the transcript (the 「$ …」 line of every command row, `[data-command-text]`): command names, flags, strings, variables, operators, numbers and comments. Painted with the CSS Custom Highlight API over dsh's own text, so no DOM is changed and copying still gives the plain command. Colours come from the code theme's shiki tokens (--shiki-token-*), so they follow 外观 › 代码主题 in light and dark. A small hand-written lexer: good for one-liners, not a full shell parser.
+Syntax colours for shell commands in the transcript (the 「$ …」 line of every command row, `[data-command-text]`): command names, flags, strings, variables, operators, numbers and comments. Painted with the CSS Custom Highlight API over dsh's own text, so no DOM is changed and copying still gives the plain command. Colours come from the code theme's shiki tokens (--shiki-token-\*), so they follow 外观 › 代码主题 in light and dark. A small hand-written lexer: good for one-liners, not a full shell parser.
 
 Command output (the band under the command, and other tools' plain-text results) gets a lighter pass: error / warning / success words, numbers, quoted strings, paths, `#` comments, `ls -l` permission columns, and diff +/- lines. Very long outputs are only coloured in their first 20 000 characters.
 
