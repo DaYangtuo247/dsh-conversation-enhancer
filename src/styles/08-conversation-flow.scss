@@ -20,6 +20,11 @@ $heads: '#{$head-line},#{$head-thought}';
    four newest turns are never skipped: they are what the eye lands on and what dsh follows. */
 .dcd-flow-turn:not(:nth-last-of-type(-n+4)):not(:empty):not(:hover):not(:focus-within){content-visibility:auto;contain-intrinsic-size:auto 400px}
 .dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps{min-width:0}
+/* dsh can still hold a finished turn's steps folded (it opens a conversation that way after a reload):
+   each step's row then carries data-turn-process-hidden and hidden="until-found", whose UA style is
+   content-visibility:hidden — a zero-height box. The flow folds and opens its runs itself, so inside
+   a flow turn dsh's fold is undone; a run card opened onto nothing but its 12px of padding. */
+.dcd-flow-turn [data-turn-process-hidden]{content-visibility:visible!important}
 /* The mark is drawn inside a box the size of one line of text, and sits a hair low in it: its ink
    is ~1px shorter than a CJK glyph's, so with both tops flush the icon read as floating above the
    words, and half a pixel down puts the two centres on one line.
