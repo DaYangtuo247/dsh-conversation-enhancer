@@ -17,6 +17,7 @@ An enhancer for the conversation view of DeepSeek Harness (web and DSH NEXT): it
 | `auto-older` | `src/parts/09-auto-older.ts` | Loads 更早消息 automatically when the reader scrolls to the top, one page per gesture |
 | `user-markdown` | `src/parts/10-user-markdown.ts` | Renders the user's own message bubble with dsh's Markdown renderer |
 | `native-probe` | `src/parts/11-native-probe.ts` | Names, once per page load, the dsh internals the styles no longer find after an upgrade |
+| `error-notes` | `src/parts/12-error-notes.ts` | Lays out a failed model request's JSON body: its message as the sentence, the status / type / code on a quiet line under it |
 
 Part of a set of independent DeepSeek Harness UI bundles: [dsh-composer-display](https://github.com/DaYangtuo247/dsh-composer-display) (the input box and what sits on it), [dsh-conversation-enhancer](https://github.com/DaYangtuo247/dsh-conversation-enhancer) (the conversation view), [dsh-whale-theme](https://github.com/DaYangtuo247/dsh-whale-theme) (background, glass, fonts and its own Settings › 主题 page) and [dsh-context-monitor](https://github.com/DaYangtuo247/dsh-context-monitor) (context usage in the composer and in a 上下文透视 tab). Each one works on its own; they share one build script, vendored here as `scripts/`.
 
@@ -45,7 +46,7 @@ src/
     00-dom-hub.ts   shared MutationObserver hub + <html> attribute watcher
     00-shared.ts    the words (WORDS), tool kinds, chevrons, motion switch
     01-… 10-…       the parts listed above
-  styles/         the CSS, one module per part (00-shared.scss … 10-user-markdown.scss)
+  styles/         the CSS, one module per part (00-shared.scss … 12-error-notes.scss)
     _shared.scss   partial: $summary-heads plus the shared mixins (ellipsis, focus-ring, icon-box)
     03-… 04-…       use __DCG_*__ placeholders (a /* @js … */ directive makes the build
                     emit a validated wrapper) for the selectors the part also queries, so

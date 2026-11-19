@@ -147,11 +147,11 @@ test('the client registers the loader module dsh expects', () => {
   assert.equal(typeof bundle.mod.apply, 'function');
 });
 
-test('all 13 parts are registered, once each', () => {
+test('all 14 parts are registered, once each', () => {
   const ids = bundle.parts.map((p) => p.id);
-  assert.equal(ids.length, 13, `registered ${ids.length} parts: ${ids.join(', ')}`);
+  assert.equal(ids.length, 14, `registered ${ids.length} parts: ${ids.join(', ')}`);
   assert.equal(new Set(ids).size, ids.length, 'a part id is registered twice');
-  for (const id of ['dom-hub', 'display-shared', 'dsh-transcript-view', 'dsh-tool-groups', 'conversation-flow', 'dsh-plan-checklist', 'native-probe']) {
+  for (const id of ['dom-hub', 'display-shared', 'dsh-transcript-view', 'dsh-tool-groups', 'conversation-flow', 'dsh-plan-checklist', 'native-probe', 'dsh-error-notes']) {
     assert.ok(ids.includes(id), `missing part '${id}'`);
   }
   for (const p of bundle.parts) assert.equal(typeof p.factory, 'function', `part '${p.id}' has no factory`);

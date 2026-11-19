@@ -13,6 +13,7 @@ declare const CSS_RENDER_OFFSCREEN: string
 declare const CSS_CONVERSATION_FLOW: string
 declare const CSS_AUTO_OLDER: string
 declare const CSS_USER_MARKDOWN: string
+declare const CSS_ERROR_NOTES: string
 
 /** Substitutes the `__DCG_*__` placeholders in 03-tool-groups.scss with the part's selectors. */
 declare function styleToolGroups(s: { ROW: string; OPEN: string; CALL: string; NODE: string; CHEV_MASK: string }): string
