@@ -233,3 +233,24 @@ html[lang^="en"] #{$open} #{$row}[data-state="error"]::before{content:"Failed"}
 .dcd-flow-card [data-chat-call-id] [class*="_imageBody"] :is([class*="_imageMeta"],[class*="_imageExtra"]){padding-inline:0!important;margin-block:4px 0!important}
 .dcd-flow-card [data-chat-call-id] > :is([class*="_imageMeta"],[class*="_imageExtra"]){padding-inline:24px!important;margin-block:8px 12px!important}
 .dcd-flow-card [data-chat-call-id] [class*="_imageBody"] > *{border-radius:10px}
+
+/* PTC (run_code). dsh draws the calls a program made as a tree under the program's row (_subCalls: left
+   hairline, margin-left 22px, padding-left 8px), and the row rules above are descendant selectors, so
+   they also reached those inner rows and stacked their own 24px on the indent. The tree is kept as ONE
+   step: no margin (it left a strip of the card showing beside a hovered row), the hairline is drawn at
+   the parent text's 24px as a background, and the inner row text sits 16px past it. */
+#{$open} [class*="_subCalls"]{margin:0!important;padding:0!important;gap:0!important;border-left:0!important;
+  background:linear-gradient(var(--dsw-alias-border-l1,rgba(0,0,0,.12)),var(--dsw-alias-border-l1,rgba(0,0,0,.12))) 24px 0/1px 100% no-repeat}
+#{$open} [class*="_subCalls"] #{$row}{padding:8px 16px 8px 40px!important;min-height:36px!important}
+#{$open} [class*="_subCalls"] > *{min-width:0}
+/* the program's own source: the same flat band as a command or its output. dsh draws it as a rounded, inset
+   slab (_codeBody, margin 4px 0 4px 4px) around a markdown code block (rounded, sticky banner, shiki pre).
+   Which wrappers sit in between differs between dsh builds and themes, so no layer is named: every container
+   inside is flattened (no fill, no radius, no margin, no side padding), and only the two things that hold
+   text — the banner with the language label, and the pre — get one 16px inset, the same as 输出 below. */
+#{$open} [class*="_codeBody"]{margin:0!important;border:0!important;border-top:1px solid var(--dsw-alias-border-l1)!important;
+  border-radius:0!important;box-shadow:none!important;background:var(--dcd-band)!important}
+#{$open} [class*="_codeBody"] :is(div,header,section,pre){background:transparent!important;border-radius:0!important;box-shadow:none!important;border-color:transparent!important}
+#{$open} [class*="_codeBody"] :is(div,header,section){margin:0!important;padding-inline:0!important;position:static!important}
+#{$open} [class*="_codeBody"] [class*="_banner_"]{padding:8px 16px 0!important}
+#{$open} [class*="_codeBody"] pre{margin:0!important;padding:4px 16px 12px!important}
