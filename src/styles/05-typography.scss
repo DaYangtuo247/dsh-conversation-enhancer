@@ -75,6 +75,14 @@ body{font-family:var(--dsh-font-family-text,var(--dcd-type-sans)),var(--dcd-type
 #{$bubble-user} *{font-size:inherit!important;line-height:inherit!important}
 #{$bubble-user} [class*="_question"]{color:var(--dcd-type-text-2)!important}
 #{$bubble-user} [class*="_answer"]{color:var(--dcd-type-text)!important}
+/* a question's reply: dsh draws its 「确认症状」 header at the secondary size, a label over the question;
+   the inherit rule above flattened it to the reading size, so header, question and answer read as one
+   paragraph. The header is a small label again, the question the quieter line, and the answer — what
+   the reader chose — the one in full colour, a little apart from it. */
+#{$bubble-user} [class*="_question"] > [class*="_header"]{font-size:calc(var(--dsh-content-font-size,14px) - 1.5px)!important;
+  line-height:1.45!important;font-weight:500;letter-spacing:.01em;color:var(--dsw-alias-label-tertiary)!important}
+#{$bubble-user} [class*="_question"]{gap:2px!important}
+#{$bubble-user} [class*="_answer"]{margin-top:6px!important;font-weight:500}
 
 /* composer input at reading size */
 [data-composer-input]{font-size:var(--dcd-type-size)!important}
