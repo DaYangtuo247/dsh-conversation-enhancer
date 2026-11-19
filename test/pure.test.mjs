@@ -325,31 +325,42 @@ test('a turn is signed by its rows, so untouched turns skip their re-render', ()
 
 /* ---------- pictures ---------- */
 
-test('imagesOf finds images in arguments, in the command and in the output', () => {
+test('only a call that looked at a picture has one', () => {
+  // the way Claude Code previews an item: an image tool, a read of an image file, or a result that came
+  // back with an image. A path that merely appears in a command or in printed output is not one.
   const rows = [
     { node: callNode(settled('read_image', { file_path: '/tmp/shot.png' }), { key: 't1' }) },
-    { node: callNode(settled('bash', { command: 'python plot.py --out /tmp/fig.webp' }), { key: 't2' }) },
-    { node: callNode(settled('bash', { command: 'ls' }, { content: [{ type: 'text', text: 'chart.jpg\n' }] }), { key: 't3' }) },
+    { node: callNode(settled('read', { file_path: '/tmp/logo.svg' }), { key: 't2' }) },
+    { node: callNode(settled('read', { file_path: '/tmp/notes.md' }), { key: 't3' }) },
+    { node: callNode(settled('bash', { command: 'python plot.py --out /tmp/fig.webp' }), { key: 't4' }) },
+    { node: callNode(settled('bash', { command: 'ls' }, { content: [{ type: 'text', text: 'icon.svg\nchart.jpg\n' }] }), { key: 't5' }) },
+    { node: callNode(settled('screenshot', { path: '/tmp/s.png' }, { content: [{ type: 'image' }] }), { key: 't6' }) },
   ];
-  assert.deepEqual(arr(zh.imagesOf(rows, '/w').map((p) => p.path)), ['/tmp/shot.png', '/tmp/fig.webp', '/w/chart.jpg']);
+  assert.deepEqual(arr(zh.imagesOf(rows, '/w').map((p) => p.path)), ['/tmp/shot.png', '/tmp/logo.svg', '/tmp/s.png']);
 });
 
-test('imagesOf resolves relative paths against the working directory and `cd DIR &&`', () => {
+test('a picture path the call was given is resolved against the working directory', () => {
   const rows = [
-    { node: callNode(settled('bash', { command: 'ls out/a.png' }), { key: 't1' }) },
-    { node: callNode(settled('bash', { command: 'cd /tmp && ls b.png' }), { key: 't2' }) },
+    { node: callNode(settled('read_image', { file_path: 'out/a.png' }), { key: 't1' }) },
+    { node: callNode(settled('read_image', { file_path: '~/b.png' }), { key: 't2' }) },
   ];
-  assert.deepEqual(arr(zh.imagesOf(rows, '/work').map((p) => p.path)), ['/work/out/a.png', '/tmp/b.png']);
+  assert.deepEqual(arr(zh.imagesOf(rows, '/Users/dev/work').map((p) => p.path)), ['/Users/dev/work/out/a.png', '/Users/dev/b.png']);
+  // no directory to resolve against: no guess
+  assert.deepEqual(arr(zh.imagesOf(rows.slice(0, 1), '').map((p) => p.path)), []);
 });
 
-test('imagesOf never guesses without a directory, and shows each picture once', () => {
-  const rows = [
-    { node: callNode(settled('bash', { command: 'ls a.png' }), { key: 't1' }) },
-    { node: callNode(settled('bash', { command: 'ls /tmp/a.png' }), { key: 't2' }) },
-    { node: callNode(settled('bash', { command: 'ls /tmp/a.png' }), { key: 't3' }) },
+test('a PTC program\'s inner image reads are its own calls\' pictures', () => {
+  // run_code reads nothing itself; the call inside it that read the image keeps the picture, by its id
+  const prog = settled('run_code', { code: 'await tools.read_image({ file_path: "/tmp/p.png" })' });
+  prog.subCalls = [
+    { callId: 'c1:ptc:1', name: 'bash', argsRaw: JSON.stringify({ command: 'shot > /tmp/p.png' }), subCalls: [] },
+    { callId: 'c1:ptc:2', name: 'read_image', argsRaw: JSON.stringify({ file_path: '/tmp/p.png' }), subCalls: [] },
   ];
-  assert.deepEqual(arr(zh.imagesOf(rows, '').map((p) => p.path)), ['/tmp/a.png']);
-  assert.deepEqual(arr(zh.imagesOf(rows, '/w').map((p) => p.path)), ['/w/a.png', '/tmp/a.png']);
+  const pics = arr(zh.imagesOf([{ node: callNode(prog, { key: 't1' }) }], '/w'));
+  assert.equal(pics.length, 1);
+  assert.equal(pics[0].path, '/tmp/p.png');
+  assert.equal(pics[0].call, 'c1:ptc:2', 'the read, not the command that wrote it');
+  assert.equal(pics[0].own, false, 'not the program row\'s own picture');
 });
 
 test('imagesOf skips `~` and non-image extensions', () => {
@@ -530,7 +541,7 @@ test('a glob, a template or an ellipsis is not a file', () => {
   assert.equal(img('ls src/parts/*.png').length, 0, 'a glob lists files, it does not name one');
   assert.equal(img('echo "/tmp/p${i}.png"').length, 0, 'a template is not a path yet');
   assert.equal(img('cp assets/running-whale@2x-….png /tmp/').length, 0, 'an ellipsis names a family, not a file');
-  assert.deepEqual(arr(img('cat /tmp/z5.png').map((p) => p.path)), ['/tmp/z5.png'], 'a real absolute path is kept');
+  assert.equal(img('cat /tmp/z5.png').length, 0, 'a command that prints a file has not looked at a picture');
 });
 
 test('row pictures are keyed by the call id the row itself carries', () => {

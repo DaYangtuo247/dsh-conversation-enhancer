@@ -551,7 +551,6 @@ part({
     /* What a row says about itself, in the form both dsh's row and our own head use for it: the one
        line a person reads. Rows are looked up by this when their keys have moved. */
     const rowText = (node) => clip(oneLine(node), 120).replace(/\s+/g, ' ').trim()
-    const IMG = /(?:^|[\s'"`=(:,])((?:~|\.{0,2})?\/?[^\s'"`;|&<>()*?$%{}\u2026]*?\.(?:png|jpe?g|gif|webp|bmp|svg))(?=$|[\s'"`;|&<>),:])/gi
     const outText = (node) => { const c = callOf(node); return Array.isArray(c.content) ? c.content.map((b) => (b && b.type === 'text' ? b.text : '')).join('\n') : '' }
     /**
      * A call that has started but has not said a byte yet: no arguments, no output. dsh draws such a
@@ -584,35 +583,58 @@ part({
     // appends calls to its own fold, and the fold is redrawn from its rows; without this the tiles
     // would be rebuilt from scratch on each append and blink out of the line and back.
     const runPics = new Map()
+    /* A picture belongs to a call that LOOKED at it, the way Claude Code previews an item: an image
+       tool (read_image / view_image), a read of an image file, or any call whose result came back with
+       an image in it. The path is the one the call was given. Paths that only appear in a command or
+       in printed output are not pictures that were looked at: scraping them gave `ls` (a bare
+       「icon.svg」 in a listing, resolved against the wrong folder) a thumbnail, and a broken one.
+       A PTC program's own calls (block.subCalls) are walked too: each picture keeps the id of the call
+       that looked at it (`call`), and `own` says whether that is the row's own call or one inside it. */
+    const IMAGE_TOOLS = new Set(['read_image', 'view_image'])
+    const IMG_FILE = /\.(?:png|jpe?g|gif|webp|bmp|svg|avif)$/i
+    const blockArgs = (b) => {
+      if (b.args && typeof b.args === 'object' && !Array.isArray(b.args) && typeof b.args.settle !== 'function') return b.args
+      const raw = typeof b.argsRaw === 'string' ? b.argsRaw
+        : b.call && typeof b.call.argsRaw === 'string' ? b.call.argsRaw
+          : b.call && typeof b.call.arguments === 'string' ? b.call.arguments : ''
+      if (!raw) return {}
+      try { return JSON.parse(raw) || {} } catch { return partialArgs(raw) || {} }
+    }
+    const lookedAt = (b, args) => {
+      const name = b.name || (b.call && b.call.name) || ''
+      const content = Array.isArray(b.content) ? b.content : []
+      const returned = content.some((x) => x && x.type === 'image')
+      const given = [args.file_path, args.path, args.filePath, args.image_path].filter((t) => typeof t === 'string' && t)
+      const images = given.filter((t) => IMG_FILE.test(t))
+      if (IMAGE_TOOLS.has(name) || returned) return images.length ? images : given
+      if (V.TOOL_KIND[name] === 'read') return images
+      return []
+    }
     function imagesOf(rows, cwd) {
       const found = []
+      const home = homeOf(cwd || cwdNow)
+      const place = (q) => {
+        if (q.startsWith('~/')) return home ? home + q.slice(1) : ''
+        if (q.startsWith('/')) return q
+        return cwd && cwd.startsWith('/') ? joinPath(cwd, q) : ''
+      }
       for (const r of rows) {
-        const a = argsOf(r.node)
-        const cmd = typeof a.command === 'string' ? a.command : ''
-        const direct = [a.file_path, a.path, a.filePath, a.image_path].filter((t) => typeof t === 'string' && t)
-        // The output is read whether or not the call has landed: a command that is still running has
-        // already printed the files it touched, and a run must not wait for it to settle before it can
-        // show them. Growth only appends to `runPics` (below), so nothing that was shown disappears.
-        const out = outText(r.node) || ''
-        const sig = `${cwd || ''}|${cmd}|${direct.join('|')}|${out.length}`
+        const root = callOf(r.node)
+        const sig = `${cwd || ''}|${rawArgsOf(r.node)}|${Array.isArray(root.content) ? root.content.length : 0}|${Array.isArray(root.subCalls) ? root.subCalls.length : 0}`
         const hit = picCache.get(r.node.key)
         let list
         if (hit && hit.sig === sig) list = hit.list
         else {
           list = []
-          // a command that starts with `cd DIR &&` names files relative to DIR
-          const cd = /^\s*cd\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*(?:&&|;)/.exec(cmd)
-          const dir = (cd && (cd[1] || cd[2] || cd[3])) || cwd || ''
-          for (const t of [...direct, cmd, out]) {
-            IMG.lastIndex = 0
-            let m
-            while ((m = IMG.exec(t))) {
-              let q = m[1]
-              if (q.startsWith('~')) continue
-              if (!q.startsWith('/')) { if (!dir || !dir.startsWith('/')) continue; q = joinPath(dir, q) }
-              list.push({ path: q, v: r.node.key })
+          const walk = (b, args, own, depth) => {
+            const id = String(b.callId || (b.call && b.call.callId) || '')
+            for (const q of lookedAt(b, args)) {
+              const at = place(q)
+              if (at) list.push({ path: at, v: own ? r.node.key : `${r.node.key}|${id}`, call: id, own })
             }
+            if (depth < 3 && Array.isArray(b.subCalls)) for (const c of b.subCalls) if (c) walk(c, blockArgs(c), false, depth + 1)
           }
+          walk(root, argsOf(r.node), true, 0)
           picCache.set(r.node.key, { sig, list })
           // long sessions: drop the oldest rather than rescanning everything at a stroke
           while (picCache.size > 300) { const oldest = picCache.keys().next(); if (oldest.done) break; picCache.delete(oldest.value) }
@@ -620,7 +642,7 @@ part({
         found.push(...list)
       }
       const seen = new Set()
-      return found.filter((f) => (seen.has(f.path) ? false : (seen.add(f.path), true))).slice(0, 24)
+      return found.filter((f) => { const k = `${f.call}|${f.path}`; return seen.has(k) ? false : (seen.add(k), true) }).slice(0, 24)
     }
     /* The newest cwd, for the tile a card ROW shows for the file it names: the tool-groups part has
        the DOM but not the node, so it hands its path back here and gets a URL. */

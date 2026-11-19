@@ -299,7 +299,7 @@ test('a path is joined as (dir, path), never the other way round', () => {
   const flow = src('src/parts/08-conversation-flow.ts');
   assert.ok(/joinPath\(cwdNow, path\)/.test(flow), 'picUrl must resolve against the cwd');
   assert.ok(!/joinPath\(raw, cwdNow\)/.test(flow), 'picUrl must not pass the path first');
-  assert.ok(/joinPath\(dir, q\)/.test(flow), 'imagesOf must resolve against the cd directory');
+  assert.ok(/joinPath\(cwd, q\)/.test(flow), 'imagesOf must resolve a given path against the cwd');
   // `~` has no meaning to the browser: it is expanded from the session's own cwd
   assert.ok(/homeOf\(cwdNow\)/.test(flow), 'picUrl must expand ~ from the cwd prefix');
 });
@@ -340,8 +340,11 @@ test('a row is recognised by its own words when its keys move', () => {
   assert.match(flow, /const rowText = \(node\) => clip\(oneLine\(node\), 120\)/, 'one normalised line per row');
   assert.match(flow, /const rowPicsByText = new Map\(\)/, 'the index itself');
   assert.match(flow, /kit\.picForText = \(text\) =>/, 'published to the DOM pass');
-  assert.match(group, /const byText = kit\.picForText/, 'asked before scraping the text for a path');
-  assert.match(view, /for \(const k of \[\.\.\.rowPicsByText\.keys\(\)\]\)/, 'and pruned with the rest');
+  assert.match(group, /const byText = (?:nested \? null : )?kit\.picForText/, 'asked before scraping the text for a path');
+  assert.match(view, /for \(const k of was\.texts\) if \(!texts\.has\(k\)\) rowPicsByText\.delete\(k\)/, 'and pruned with the rest');
+  // pruned per turn: against one turn's rows, the shared maps lost every other turn's pictures
+  assert.doesNotMatch(view, /for \(const k of \[\.\.\.rowPics\.keys\(\)\]\) if \(!keys\.has\(k\)\)/, 'no turn prunes another turn\'s rows');
+  assert.match(view, /ownedPics\.set\(turn\.key, \{ keys, ids, texts \}\)/, 'each turn tracks what it wrote');
 });
 
 test('the tile paints on whatever element ends up holding the marker', () => {
@@ -477,4 +480,48 @@ test('the rows dsh still draws keep our reading rhythm', () => {
   assert.ok(css.includes('--dsh-compaction-header-height:calc(22px + var(--dsh-content-font-delta,0px))'), 'the compaction header would drift off its own line');
   // an expanded native body is the grey well a tool body opens into, not the blue-tinted code block
   assert.ok(/#\{\$native-well-scope\}\{background:var\(--dcd-band/.test(css), "a native body kept dsh's cool code-block fill");
+});
+
+test('a PTC program\'s inner calls show their own picture, not the program\'s', () => {
+  // the node / flow key and the words index above an inner call are the program's: asking by them
+  // gave every inner call the program's picture
+  assert.match(group, /const nested = !!row\.closest\('\[data-subcalls\]'\)/, 'an inner call is told apart');
+  assert.match(group, /const byRow = nested \? null : kit\.picForRow/, 'no lookup by the program\'s key');
+  assert.match(group, /const byText = nested \? null : kit\.picForText/, 'nor by the program\'s words');
+  // and the program does not show the same file a second time
+  assert.match(group, /inner\.some\(\(e\) => fileOf\(e\.getAttribute\('data-dcd-group-pic-src'\)\) === fileOf\(want\)\)/, 'one picture, one row');
+});
+
+test('a row tile becomes visible once its own copy has loaded', () => {
+  // it is created at data-state=loading (opacity 0); without a load handler it never showed
+  assert.match(group, /tile\.addEventListener\('load', \(\) => tile!\.setAttribute\('data-state', 'ok'\)\)/);
+  assert.match(group, /tile\.complete && tile\.naturalWidth > 0/, 'a cached picture too');
+});
+
+test('an opened run moves its pictures from the line to the rows', () => {
+  const flowCss = src('src/styles/08-conversation-flow.scss');
+  assert.match(flowCss, /\.dcd-flow-run\[data-open\] > \.dcd-flow-line > \.dcd-flow-thumbs\{display:none\}/);
+});
+
+test('an opened picture is centred, its path opens the file, and the row tile steps aside', () => {
+  const groupsCss = src('src/styles/03-tool-groups.scss');
+  const groups = src('src/parts/03-tool-groups.ts');
+  assert.match(groupsCss, /\[class\*="_imageBody"\]\{display:flex!important;flex-direction:column;align-items:center;/);
+  assert.match(groupsCss, /\[aria-expanded="true"\] > \.dcd-group-rowthumb\{display:none\}/);
+  // and the chevron the tile used to push to the edge goes back there on its own
+  assert.match(groupsCss, /\[aria-expanded="true"\]\[data-dcd-group-pic\]::after\{margin-left:auto!important\}/);
+  // the caption's first line is marked only when it is an absolute path and the row has its own file link
+  assert.match(groups, /ABS_PATH\.test\(text\) \|\| !meta\.closest\('\[data-chat-call-id\]'\)\?\.querySelector\('\[class\*="_fileLink"\]'\)/);
+  // a click (or Enter) hands over to that link, and teardown takes both listeners and the marks back
+  assert.match(groups, /link\.click\(\)/);
+  assert.match(groups, /addEventListener\('click', openPicPath, true\)/);
+  assert.match(groups, /removeEventListener\('keydown', openPicPath, true\)/);
+  assert.match(groups, /querySelectorAll\('\[data-dcd-pic-path\]'\)\.forEach/);
+});
+
+test('a PTC program does not sweep away its inner calls\' tiles as leftovers', () => {
+  const groups = src('src/parts/03-tool-groups.ts');
+  // the leftover sweep only takes a tile whose nearest call row is the row being marked
+  assert.match(groups, /stale\.parentElement !== host && stale\.closest\('\[data-chat-call-id\]'\) === row\) stale\.remove\(\)/);
+  assert.doesNotMatch(groups, /const stale = row\.querySelector\('\.dcd-group-rowthumb'\)/);
 });

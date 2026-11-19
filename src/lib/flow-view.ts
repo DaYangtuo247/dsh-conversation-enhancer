@@ -417,6 +417,8 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
           h('div', { className: 'dcd-flow-steps-body' }, items.map((it) => render(it, false, true))))) : null)
   }
 
+  /** turn key -> the row keys / call ids / row words that turn wrote into the shared picture maps */
+  const ownedPics = new Map()
   const Turn = React.memo(function Turn({ turn, last, openRuns, view, Native, props, quiet, lang }) {
     // the group the live line must sit under: the last run of the turn, whatever comes after it
     const lastRunItem = (() => { for (let i = turn.items.length - 1; i >= 0; i--) if (turn.items[i].type === 'run') return turn.items[i]; return null })()
@@ -458,7 +460,15 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
           keys.add(r.entry.key)
           const id0 = callIdOf(r.node)
           if (id0) ids.add(id0)
-          const own = imagesOf([r], props.cwd)
+          const seen = imagesOf([r], props.cwd)
+          // the row's own call's picture; a PTC program's inner calls get theirs under their own id
+          // (the inner row carries that id), so the program row does not repeat them
+          const own = seen.filter((p) => p.own)
+          for (const p of seen) {
+            if (p.own || !p.call || ids.has(p.call)) continue
+            ids.add(p.call)
+            rowPicsById.set(p.call, p)
+          }
           if (own.length) rowPics.set(r.entry.key, own[0])
           else rowPics.delete(r.entry.key)
           if (id0) {
@@ -472,14 +482,29 @@ function makeFlowView(kit: Kit, require: (name: string) => any, M: any) {
           }
         }
       }
-      // rows that scrolled out of the transcript take their tiles with them
-      for (const k of [...rowPics.keys()]) if (!keys.has(k)) rowPics.delete(k)
-      for (const k of [...rowPicsById.keys()]) if (!ids.has(k)) rowPicsById.delete(k)
+      // rows this turn no longer has take their tiles with them. Only THIS turn's: the maps are shared
+      // by every turn, and pruning them against one turn's rows wiped every other turn's pictures —
+      // the last turn drawn kept its tiles, an earlier turn's rows opened onto none
       const texts = new Set()
       for (const it of list) for (const r of it.rows) texts.add(rowText(r.node))
-      for (const k of [...rowPicsByText.keys()]) if (!texts.has(k)) rowPicsByText.delete(k)
+      const was = ownedPics.get(turn.key)
+      if (was) {
+        for (const k of was.keys) if (!keys.has(k)) rowPics.delete(k)
+        for (const k of was.ids) if (!ids.has(k)) rowPicsById.delete(k)
+        for (const k of was.texts) if (!texts.has(k)) rowPicsByText.delete(k)
+      }
+      ownedPics.set(turn.key, { keys, ids, texts })
       return list
     }, [turn, props.cwd])
+    // a turn that leaves the list (a session switch, an older page dropped) clears what it wrote
+    React.useEffect(() => () => {
+      const was = ownedPics.get(turn.key)
+      if (!was) return
+      for (const k of was.keys) rowPics.delete(k)
+      for (const k of was.ids) rowPicsById.delete(k)
+      for (const k of was.texts) rowPicsByText.delete(k)
+      ownedPics.delete(turn.key)
+    }, [turn.key])
     const top = stretches(turn.items)
     const w = words()
     // A turn that was stopped or failed is never folded: dsh keeps its process open for exactly

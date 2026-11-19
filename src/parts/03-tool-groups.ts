@@ -135,7 +135,11 @@ part({
         try { url = byCall(callId) || '' } catch (e) { url = '' }
         if (url) return url
       }
-      const byRow = kit.picForRow
+      // a call a PTC program made sits inside the program's row: the node / flow key above it is the
+      // PROGRAM's, so asking by it handed every inner call the program's picture. Such a row is
+      // matched only by what is its own (its id, its words, a path it prints).
+      const nested = !!row.closest('[data-subcalls]')
+      const byRow = nested ? null : kit.picForRow
       // dsh marks the node it rendered with `data-chat-node-key` (its own key) and the *position* it
       // occupies with `data-chat-flow-key` (a group key when the line sits inside a collapsed group,
       // or a JSON pair when it belongs to a group part). The picture map is keyed by the node key, so
@@ -152,7 +156,9 @@ part({
       }
       // last resort: the row says what it did ("Simplify the call-id test", "读取 dsh-claude-shared/build.mjs"),
       // and conversation-flow indexed its pictures by exactly that line — the one key that does not move
-      const byText = kit.picForText
+      // the words index is built from the PROGRAM's rows too: an inner call that reads like its
+      // program (「Screenshot regenerated repro」 twice) would inherit its picture through it
+      const byText = nested ? null : kit.picForText
       if (typeof byText === 'function') {
         const title = titleOf(row)
         const summary = (row.querySelector('[class*="_summary"]') || {}).textContent || ''
@@ -163,13 +169,29 @@ part({
           if (url) return url
         }
       }
-      // fallback: a path printed on the row itself (「读取图片 · /tmp/z5.png」)
+      // fallback: a path printed on the row itself (「读取图片 · /tmp/z5.png」) — on a row that READ an
+      // image only. A command or a listing that merely prints a file name has not looked at a picture.
+      const readsImage = !!row.querySelector('[data-tool="read_image"],[data-tool="view_image"]')
+        || /^(读取图片|read image|画像を読み取り)$/i.test(titleOf(row))
+      if (!readsImage) return ''
       const url = kit.picUrl
       if (typeof url !== 'function') return ''
       const m = String(row.textContent || '').match(IMGP)
       // a glob or a fragment is not a picture: `ls src/parts/*.png` is a command, not a file
       if (!m || /[*?%]/.test(m[0]) || m[0].split('/').length < 3) return ''
-      try { return url(m[0]) || '' } catch (e) { return '' }
+      let found = ''
+      try { found = url(m[0]) || '' } catch (e) { found = '' }
+      // an inner call that names a file its program also produced: show the program's copy of it, which
+      // is versioned by that call (the path alone shows whatever the file holds now, i.e. the last run's)
+      if (found && nested && typeof byCall === 'function') {
+        const prog = row.parentElement && row.parentElement.closest('[data-chat-call-id]')
+        const progId = prog && prog.getAttribute('data-chat-call-id')
+        let own = ''
+        try { own = progId ? byCall(progId) || '' : '' } catch (e) { own = '' }
+        const fileOf = (u: string) => u.replace(/[?&]v=[^&]*/g, '')
+        if (own && fileOf(own) === fileOf(found)) return own
+      }
+      return found
     }
     // a name that did not load is not a picture (`a.png` in a test command, `/tmp/p${i}.png` in a
     // glob): remember the verdict, or every pass probes it again
@@ -228,6 +250,10 @@ part({
         tile.setAttribute('loading', 'eager')
         tile.setAttribute('decoding', 'async')
         tile.setAttribute('alt', '')
+        // shown once its own copy has decoded (the probe proved the file is a picture; this is the
+        // tile's own load): without this the tile stayed at data-state=loading, i.e. invisible
+        tile.addEventListener('load', () => tile!.setAttribute('data-state', 'ok'))
+        tile.addEventListener('error', () => tile!.setAttribute('data-state', 'failed'))
         // click opens it full size, and must not toggle the row open (dsh listens on the line)
         tile.addEventListener('click', (e) => {
           e.preventDefault()
@@ -240,6 +266,8 @@ part({
         tile.setAttribute('data-state', 'loading')
         tile.setAttribute('src', want)
       }
+      // a cached picture can be complete before the listener above ever runs
+      if (tile.complete && tile.naturalWidth > 0) tile.setAttribute('data-state', 'ok')
     }
     const markRowThumb = (row) => {
       const want = rowPicUrl(row)
@@ -251,10 +279,18 @@ part({
       const line = row.querySelector('[data-disclosure-row],[data-expandable][role="button"]')
       const title = row.querySelector(TITLE_SEL)
       const host = (line || (title && title.parentElement) || row) as HTMLElement
-      // a leftover node from the previous build
-      const stale = row.querySelector('.dcd-group-rowthumb')
-      if (stale && stale.parentElement !== host) stale.remove()
+      // a leftover node from the previous build — this row's own only: a PTC program holds its inner
+      // calls' rows, and their tiles (set just before, flowTitles does inner rows first) are not stale
+      for (const stale of Array.from(row.querySelectorAll('.dcd-group-rowthumb')) as HTMLElement[]) {
+        if (stale.parentElement !== host && stale.closest('[data-chat-call-id]') === row) stale.remove()
+      }
       if (!want) { clearRowPic(host); return }
+      // a PTC program whose inner call shows this picture: the picture belongs on that call's row
+      // (the one that made or read it), not twice, once on the program as well
+      // (compared by file: the program's URL carries its own call as the version, the inner row's not)
+      const fileOf = (u: string | null) => String(u || '').replace(/[?&]v=[^&]*/g, '')
+      const inner = row.closest('[data-subcalls]') ? [] : (Array.from(row.querySelectorAll('[data-subcalls] [data-dcd-group-pic-src]')) as HTMLElement[])
+      if (inner.some((e) => fileOf(e.getAttribute('data-dcd-group-pic-src')) === fileOf(want))) { clearRowPic(host); return }
       if (host.getAttribute('data-dcd-group-pic-src') === want && host.hasAttribute('data-dcd-group-pic')) {
         // React reconciles the row's children on a re-render and drops a node it did not create, so
         // the marker can outlive the tile; putting it back is idempotent and costs one lookup
@@ -283,7 +319,10 @@ part({
     /* One pass over the rows the flow part draws: they are outside the grouping pass below, so their
        labels, their rewritten viewer and their picture tile are all fixed up here. */
     const flowTitles = () => {
-      for (const row of document.querySelectorAll('.dcd-flow-card [data-chat-call-id]')) {
+      // inner calls (a PTC program's) before the program: the program's row checks what they show
+      const all = Array.from(document.querySelectorAll('.dcd-flow-card [data-chat-call-id]'))
+      const rows = all.filter((r) => r.closest('[data-subcalls]')).concat(all.filter((r) => !r.closest('[data-subcalls]')))
+      for (const row of rows) {
         labelRow(row)
         fixCommandInput(row)
         markRowThumb(row)
@@ -684,6 +723,31 @@ part({
       for (const el of marked) if (!el.hasAttribute('data-dcd-echo')) el.setAttribute('data-dcd-echo', '')
     }
 
+    /* the caption under an opened picture: dsh prints the file's absolute path as plain text there. It
+       becomes a link that does what the row's own file link does (opens dsh's file preview). */
+    const ABS_PATH = /^(?:\/|~\/|[A-Za-z]:[\\/])/
+    function markPicPaths() {
+      for (const meta of Array.from(document.querySelectorAll('[class*="_imageBody"] > [class*="_imageMeta"]'))) {
+        const line = meta.firstElementChild as HTMLElement | null
+        if (!line || line.hasAttribute('data-dcd-pic-path')) continue
+        const text = (line.textContent || '').trim()
+        if (!ABS_PATH.test(text) || !meta.closest('[data-chat-call-id]')?.querySelector('[class*="_fileLink"]')) continue
+        line.setAttribute('data-dcd-pic-path', '')
+        line.setAttribute('role', 'link')
+        line.setAttribute('tabindex', '0')
+        line.title = text
+      }
+    }
+    function openPicPath(e) {
+      const line = e.target && e.target.closest && e.target.closest('[data-dcd-pic-path]')
+      if (!line) return
+      if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return
+      const link = line.closest('[data-chat-call-id]')?.querySelector('[class*="_fileLink"]') as HTMLElement | null
+      if (!link) return
+      e.preventDefault(); e.stopPropagation()
+      link.click()
+    }
+
     let timer = 0
     function schedule() {
       if (timer) return
@@ -694,6 +758,8 @@ part({
     function start() {
       sheet.ensure()
       document.addEventListener('click', onRowClick, true)
+      document.addEventListener('click', openPicPath, true)
+      document.addEventListener('keydown', openPicPath, true)
       // one shared, frame-coalesced observer; in conversation-flow mode only the running line is kept in
       // sync, otherwise the grouping pass runs only when a tool row / state actually changed
       const un = kit.dom.subscribe((recs) => {
@@ -701,6 +767,7 @@ part({
         if (kit.dom.touches(recs, '[class*="_codeBody"]')) markLead()
         // a program's calls: one opened or closed, or an output landing in one
         if (kit.dom.touches(recs, '[data-subcalls]')) { markWrap(); markEcho() }
+        if (kit.dom.touches(recs, '[class*="_imageMeta"]')) markPicPaths()
         if (flowActive()) {
           // context rows are already dropped by the flow's roleOf; this is the DOM safety net, so only
           // look when a record could be one (a full-document scan on every frame while a reply streams
@@ -733,9 +800,13 @@ part({
       markLead()
       markWrap()
       markEcho()
+      markPicPaths()
       return () => {
         un(); unAttr(); clearInterval(tick); clearInterval(sweep)
         document.removeEventListener('click', onRowClick, true)
+        document.removeEventListener('click', openPicPath, true)
+        document.removeEventListener('keydown', openPicPath, true)
+        document.querySelectorAll('[data-dcd-pic-path]').forEach((m) => { for (const a of ['data-dcd-pic-path', 'role', 'tabindex', 'title']) m.removeAttribute(a) })
         for (const t of pendingClose.values()) clearTimeout(t)
         pendingClose.clear()
         manual.clear(); firstSeen.clear(); autoOpened.clear()
