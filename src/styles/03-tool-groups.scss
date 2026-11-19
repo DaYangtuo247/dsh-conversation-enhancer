@@ -211,10 +211,12 @@ html[lang^="en"] #{$open} #{$row}[data-state="error"]::before{content:"Failed"}
    the file full size. It is appended only after the file has decoded, so a bogus path leaves an
    ordinary row behind instead of a broken frame. React may reconcile the row's children and drop our
    node; the sweep in start() puts it back, and it is idempotent. */
-.dcd-group-rowthumb{flex:none;order:8;width:30px;height:30px;margin-left:auto;margin-right:6px;border-radius:5px;
-  border:1px solid var(--dsw-alias-border-l2);object-fit:cover;cursor:zoom-in;
-  background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base,transparent))}
+.dcd-group-rowthumb{flex:none;order:8;box-sizing:border-box;width:44px;height:30px;margin-left:auto;margin-right:6px;border-radius:6px;
+  border:1px solid var(--dsw-alias-border-l2);object-fit:cover;object-position:top left;cursor:zoom-in;
+  background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base,transparent));transition:opacity .18s ease,transform .15s ease,box-shadow .15s ease}
 .dcd-group-rowthumb[data-state="loading"]{opacity:0;pointer-events:none}
+.dcd-group-rowthumb[data-state="failed"]{display:none}
+.dcd-group-rowthumb:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .dcd-group-rowthumb:hover{filter:brightness(1.06)}
 /* the lightbox a row thumb opens: ours, so it works without reaching into dsh's primitives */
 .dcd-group-peek{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;
@@ -235,6 +237,31 @@ html[lang^="en"] #{$open} #{$row}[data-state="error"]::before{content:"Failed"}
 .dcd-flow-card [data-chat-call-id] [class*="_imageBody"] :is([class*="_imageMeta"],[class*="_imageExtra"]){padding-inline:0!important;margin-block:4px 0!important}
 .dcd-flow-card [data-chat-call-id] > :is([class*="_imageMeta"],[class*="_imageExtra"]){padding-inline:24px!important;margin-block:8px 12px!important}
 .dcd-flow-card [data-chat-call-id] [class*="_imageBody"] > *{border-radius:10px}
+/* an opened picture in the band: the band's margin is 0 (the band rule above), so the picture sat flush
+   against the hairline, pinned to the left, with its path and size as two raw lines under it. It is
+   centred with air above and below, framed lightly, and the caption is centred under it: the path is
+   a link (part 03 marks it and hands its click to the row's own file link, i.e. dsh's file preview),
+   the size a quieter second line. */
+#{$open} [class*="_bodyWrap"] > [class*="_imageBody"]{display:flex!important;flex-direction:column;align-items:center;
+  flex:1 1 auto;align-self:stretch;width:100%;
+  padding:16px 24px 14px!important;margin:0!important;border-radius:0!important}
+#{$open} [class*="_imageBody"] [class*="_gallery"]{justify-content:center!important;align-self:center!important}
+#{$open} [class*="_imageBody"] [class*="_frame"]{border-radius:10px!important;
+  box-shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.06);transition:box-shadow .15s ease,transform .15s ease}
+#{$open} [class*="_imageBody"] [class*="_frame"]:hover{transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,.06),0 8px 22px rgba(0,0,0,.1)}
+#{$open} [class*="_imageBody"] > [class*="_imageMeta"]{display:flex;flex-direction:column;align-items:center;gap:2px;
+  max-width:100%;margin:10px 0 0!important;text-align:center;line-height:17px}
+#{$open} [class*="_imageBody"] > [class*="_imageMeta"] > :not([data-dcd-pic-path]){opacity:.85}
+[data-dcd-pic-path]{max-width:100%;cursor:pointer;border-radius:4px;color:var(--dsw-alias-label-secondary);
+  text-decoration:underline dotted;text-decoration-color:var(--dsw-alias-border-l3,rgba(0,0,0,.25));text-underline-offset:3px;
+  transition:color .12s,text-decoration-color .12s}
+[data-dcd-pic-path]:hover{color:var(--dsw-alias-label-primary);text-decoration-style:solid;text-decoration-color:currentColor}
+[data-dcd-pic-path]:focus-visible{outline:2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
+/* opened, the row's picture is right there in the band: the tile beside the row would only repeat it */
+[class*="_root"]:has(> [class*="_bodyWrap"] > [class*="_imageBody"]) > [data-disclosure-header] > [aria-expanded="true"] > .dcd-group-rowthumb{display:none}
+/* the tile is what pushed the chevron to the right edge (the chevron's own auto margin is off while a
+   picture is on the row): with the tile gone, the chevron takes its auto margin back */
+[class*="_root"]:has(> [class*="_bodyWrap"] > [class*="_imageBody"]) > [data-disclosure-header] > [aria-expanded="true"][data-dcd-group-pic]::after{margin-left:auto!important}
 
 /* PTC (run_code). dsh draws the calls a program made as a tree under the program's row (_subCalls: left
    hairline, margin-left 22px, padding-left 8px), and the row rules above are descendant selectors, so

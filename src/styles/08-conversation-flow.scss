@@ -85,7 +85,13 @@ $mark-drop: calc(var(--dsh-content-font-size, 14px) * 0.035714); /* 0.5 / 14 */
 /* image previews at the right of a call's line: what it drew or read, at a glance; click opens it.
    Small enough to keep the line quiet, pushed to the right edge of the column. A fixed set of
    tiles, so the row never gains and loses them; the label truncates before they do. */
-.dcd-flow-thumbs{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
+.dcd-flow-thumbs{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto;
+  /* on the chevron column of the lines around it (a thought's › ends 6px in), and no taller than its
+     line: the 30px tiles used to stretch a 26px line and push it off the rhythm of its neighbours */
+  margin-right:6px;margin-block:-2px}
+/* the line's previews sum up a FOLDED run; opened, each picture sits on the row of the call that made
+   it, so the summary steps aside (the way Claude Code moves them from the group line onto its items) */
+.dcd-flow-run[data-open] > .dcd-flow-line > .dcd-flow-thumbs{display:none}
 .dcd-flow-thumb{all:unset;box-sizing:border-box;display:block;width:44px;height:30px;border-radius:6px;overflow:hidden;cursor:zoom-in;
   border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-specific-input-major,transparent);transition:transform .12s ease,box-shadow .12s ease}
 .dcd-flow-thumb:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.12)}
