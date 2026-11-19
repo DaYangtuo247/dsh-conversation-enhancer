@@ -217,6 +217,12 @@ html[data-dcd-anim="off"] .dcd-flow-thumb img{transition:none;opacity:1}
 .dcd-flow-turn[data-live]{padding-bottom:0}
 .dcd-flow-turn > :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin:1px 0}
 .dcd-flow-turn > [data-chat-flow-kind="user"] + :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin-top:10px}
+/* the reader's other bubbles land in the middle of a turn — a message sent while it ran, the answer to
+   a question it asked, a /goal line — where only a turn's first message had any air: they sat 1px under
+   the run line above them, its pictures over their top edge. They get the room a turn's own message
+   has, before and after. */
+.dcd-flow-turn > :is([data-chat-flow-kind="steering"],[data-chat-flow-kind="question-reply"],[data-chat-flow-kind="command-input"]):not(:first-child){margin-top:16px}
+.dcd-flow-turn > :is([data-chat-flow-kind="steering"],[data-chat-flow-kind="question-reply"],[data-chat-flow-kind="command-input"]) + *{margin-top:10px}
 .dcd-flow-turn > :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps) + [data-chat-flow-kind="assistant-step"]{margin-top:12px}
 .dcd-flow-turn > [data-chat-flow-kind="assistant-step"] + :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin-top:14px}
 .dcd-flow-turn > [data-open] + :is(.dcd-flow-run,.dcd-flow-thought,.dcd-flow-steps){margin-top:6px}
